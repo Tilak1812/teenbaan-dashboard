@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Backups - Teenbaan{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>💾 Database Backups</h1>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('admin') }}" class="btn-secondary">← Back to Admin</a>
+    </div>
+</div>
+
+{% if backups %}
+<div class="table-section">
+    <div class="section-header">
+        <h2>📋 Available Backups</h2>
+        <span class="record-count">{{ backups|length }} backups</span>
+    </div>
+    
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Size</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for backup in backups %}
+                <tr>
+                    <td>
+                        <span class="backup-icon">💾</span>
+                        {{ backup.name }}
+                    </td>
+                    <td>{{ backup.size }}</td>
+                    <td>{{ backup.modified }}</td>
+                    <td class="action-cell">
+                        <a href="{{ url_for('download_backup', filename=backup.name) }}" 
+                           class="btn-icon view" title="Download">⬇️</a>
+                        <a href="{{ url_for('restore_backup', filename=backup.name) }}" 
+                           class="btn-icon restore" title="Restore"
+                           onclick="return confirm('Restore this backup? Current data will be replaced!')">🔄</a>
+                        <a href="{{ url_for('delete_backup', filename=backup.name) }}" 
+                           class="btn-icon delete" title="Delete"
+                           onclick="return confirm('Delete this backup?')">🗑️</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">💾</div>
+    <h3>No Backups Found</h3>
+    <p>Create your first backup from the Admin panel.</p>
+    <a href="{{ url_for('admin') }}" class="btn-primary">Go to Admin</a>
+</div>
+{% endif %}
+
+<style>
+.backup-icon { margin-right: 10px; }
+.btn-icon.restore { background: #17a2b8; color: white; }
+.action-cell { display: flex; gap: 5px; }
+</style>
+{% endblock %}

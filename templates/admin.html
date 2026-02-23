@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - Teenbaan{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>⚙️ Admin Panel</h1>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('list_backups') }}" class="btn-secondary">💾 Backups</a>
+        <a href="{{ url_for('activity') }}" class="btn-secondary">📋 Activity Log</a>
+        <a href="{{ url_for('settings') }}" class="btn-secondary">⚙️ Settings</a>
+    </div>
+</div>
+
+{% if message %}
+<div class="alert alert-{{ 'success' if 'success' in message|lower else 'error' }}">
+    {{ message }}
+</div>
+{% endif %}
+
+<!-- Stats Row -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-content">
+            <span class="stat-value">{{ orders_count }}</span>
+            <span class="stat-label">Orders</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-content">
+            <span class="stat-value">{{ products_count }}</span>
+            <span class="stat-label">Products</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-content">
+            <span class="stat-value">{{ users_count }}</span>
+            <span class="stat-label">Users</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">📋</div>
+        <div class="stat-content">
+            <span class="stat-value">{{ activity_count }}</span>
+            <span class="stat-label">Activities</span>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Grid -->
+<div class="admin-grid">
+    <!-- Database Operations -->
+    <div class="admin-card">
+        <div class="card-header">
+            <h2>🗄️ Database Operations</h2>
+        </div>
+        <div class="card-content">
+            <form method="POST" onsubmit="return confirm('Create new database? All current data will be lost!');">
+                <input type="hidden" name="action" value="create_database">
+                <button type="submit" class="btn-danger" style="width: 100%; margin-bottom: 10px;">
+                    🗑️ Create New Database
+                </button>
+            </form>
+            <form method="POST" onsubmit="return confirm('Backup current database?');">
+                <input type="hidden" name="action" value="backup_database">
+                <button type="submit" class="btn-primary" style="width: 100%;">
+                    💾 Backup Database
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Truncate Data -->
+    <div class="admin-card">
+        <div class="card-header">
+            <h2>🗑️ Clear Data</h2>
+        </div>
+        <div class="card-content">
+            <form method="POST" onsubmit="return confirm('Delete all orders? This cannot be undone!');">
+                <input type="hidden" name="action" value="truncate_orders">
+                <button type="submit" class="btn-secondary" style="width: 100%; margin-bottom: 10px;">
+                    🗑️ Delete All Orders
+                </button>
+            </form>
+            <form method="POST" onsubmit="return confirm('Delete all products? This cannot be undone!');">
+                <input type="hidden" name="action" value="truncate_products">
+                <button type="submit" class="btn-secondary" style="width: 100%;">
+                    🗑️ Delete All Products
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Reset Auto Increment -->
+    <div class="admin-card">
+        <div class="card-header">
+            <h2>🔄 Reset IDs</h2>
+        </div>
+        <div class="card-content">
+            <form method="POST" onsubmit="return confirm('Reset orders auto increment ID?');">
+                <input type="hidden" name="action" value="reset_id_orders">
+                <button type="submit" class="btn-secondary" style="width: 100%; margin-bottom: 10px;">
+                    🔄 Reset Orders ID
+                </button>
+            </form>
+            <form method="POST" onsubmit="return confirm('Reset products auto increment ID?');">
+                <input type="hidden" name="action" value="reset_id_products">
+                <button type="submit" class="btn-secondary" style="width: 100%;">
+                    🔄 Reset Products ID
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Users List -->
+    <div class="admin-card">
+        <div class="card-header">
+            <h2>👥 Recent Users</h2>
+        </div>
+        <div class="card-content">
+            {% for user in users[:5] %}
+            <div class="user-item">
+                <span class="user-name">{{ user.username }}</span>
+                <span class="user-role">{{ user.role }}</span>
+            </div>
+            {% endfor %}
+            <a href="{{ url_for('users') }}" class="btn-secondary" style="width: 100%; text-align: center; margin-top: 10px;">
+                View All Users →
+            </a>
+        </div>
+    </div>
+    
+    <!-- Tables List -->
+    <div class="admin-card full-width">
+        <div class="card-header">
+            <h2>📋 Database Tables</h2>
+        </div>
+                <div class="card-content">
+            <div class="tables-list">
+                {% for table in tables %}
+                <div class="table-item">
+                    <span class="table-name">📋 {{ table }}</span>
+                    <form method="POST" style="display: inline;">
+                        <input type="hidden" name="action" value="drop_table">
+                        <input type="hidden" name="table_name" value="{{ table }}">
+                        <button type="submit" class="btn-icon delete" 
+                                onclick="return confirm('Drop table {{ table }}? This cannot be undone!');"
+                                title="Drop Table">🗑️</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Table -->
+    <div class="admin-card full-width">
+        <div class="card-header">
+            <h2>➕ Create New Table</h2>
+        </div>
+        <div class="card-content">
+            <form method="POST">
+                <input type="hidden" name="action" value="create_table">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="table_name">Table Name</label>
+                        <input type="text" id="table_name" name="table_name" 
+                               placeholder="my_table" required class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="columns">Columns (SQL format)</label>
+                        <input type="text" id="columns" name="columns" 
+                               placeholder="id INTEGER PRIMARY KEY, name TEXT" required class="form-input">
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Create Table</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Add Column -->
+    <div class="admin-card full-width">
+        <div class="card-header">
+            <h2>➕ Add Column to Table</h2>
+        </div>
+        <div class="card-content">
+            <form method="POST">
+                <input type="hidden" name="action" value="add_column">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="table_name_col">Table</label>
+                        <select id="table_name_col" name="table_name" class="form-input">
+                            {% for table in tables %}
+                            <option value="{{ table }}">{{ table }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="column_name">Column Name</label>
+                        <input type="text" id="column_name" name="column_name" 
+                               placeholder="new_column" required class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="column_type">Column Type</label>
+                        <select id="column_type" name="column_type" class="form-input">
+                            <option value="TEXT">TEXT</option>
+                            <option value="INTEGER">INTEGER</option>
+                            <option value="REAL">REAL</option>
+                            <option value="BOOLEAN">BOOLEAN</option>
+                            <option value="TIMESTAMP">TIMESTAMP</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Add Column</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Custom SQL -->
+    <div class="admin-card full-width">
+        <div class="card-header">
+            <h2>💻 Custom SQL Query</h2>
+        </div>
+        <div class="card-content">
+            <form method="POST">
+                <input type="hidden" name="action" value="custom_sql">
+                <div class="form-group">
+                    <label for="custom_sql">SQL Query (SELECT, INSERT, UPDATE, DELETE only)</label>
+                    <textarea id="custom_sql" name="custom_sql" rows="4" 
+                              placeholder="SELECT * FROM orders WHERE..." class="form-input"></textarea>
+                </div>
+                <button type="submit" class="btn-primary">Execute Query</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.admin-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.admin-card.full-width {
+    grid-column: 1 / -1;
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: white;
+    padding: 15px 20px;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.card-content {
+    padding: 20px;
+}
+
+.user-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.user-item:last-child {
+    border-bottom: none;
+}
+
+.user-name {
+    font-weight: 500;
+}
+
+.user-role {
+    background: var(--light);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+}
+
+.tables-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.table-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: var(--light);
+    border-radius: 8px;
+}
+
+.table-name {
+    font-weight: 500;
+}
+
+.alert {
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.alert.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Teenbaan{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>👥 User Management</h1>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('add_user') }}" class="btn-primary">➕ Add User</a>
+    </div>
+</div>
+
+<div class="table-section">
+    <div class="section-header">
+        <h2>📋 All Users</h2>
+        <span class="record-count">{{ users|length }} users</span>
+    </div>
+    
+    {% if users %}
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td><span class="id-badge">{{ user.id }}</span></td>
+                    <td><strong>{{ user.username }}</strong></td>
+                    <td>{{ user.email or 'N/A' }}</td>
+                    <td>
+                        <span class="role-badge {{ user.role }}">{{ user.role }}</span>
+                    </td>
+                    <td>
+                        {% if user.status == 'active' %}
+                        <span class="status-badge active">Active</span>
+                        {% else %}
+                        <span class="status-badge inactive">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.created_at }}</td>
+                    <td class="action-cell">
+                        <a href="{{ url_for('edit_user', id=user.id) }}" class="btn-icon edit" title="Edit">✏️</a>
+                        {% if user.id != session.get('user_id') %}
+                        <a href="{{ url_for('toggle_user_status', id=user.id) }}" 
+                           class="btn-icon {% if user.status == 'active' %}deactivate{% else %}activate{% endif %}" 
+                           title="{% if user.status == 'active' %}Deactivate{% else %}Activate{% endif %}">
+                            {% if user.status == 'active' %}⏸️{% else %}▶️{% endif %}
+                        </a>
+                        <a href="{{ url_for('delete_user', id=user.id) }}" 
+                           class="btn-icon delete" title="Delete"
+                           onclick="return confirm('Delete this user?')">🗑️</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">👥</div>
+        <h3>No Users Found</h3>
+        <p>Create your first user to get started.</p>
+        <a href="{{ url_for('add_user') }}" class="btn-primary">Add User</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.role-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.role-badge.admin {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.role-badge.user {
+    background: #e9ecef;
+    color: #495057;
+}
+</style>
+{% endblock %}

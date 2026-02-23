@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Report - Teenbaan</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 40px; color: #333; }
+        .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #667eea; }
+        .header h1 { color: #667eea; font-size: 2.5rem; }
+        .meta { text-align: right; color: #666; margin-bottom: 20px; font-size: 0.9rem; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+        .stat-box { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; border-radius: 10px; text-align: center; }
+        .stat-box .value { font-size: 1.8rem; font-weight: bold; }
+        .stat-box .label { font-size: 0.85rem; opacity: 0.95; }
+        .section { margin-bottom: 30px; }
+        .section h2 { color: #2c3e50; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #667eea; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .chart-section { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .chart-box { border: 1px solid #eee; border-radius: 8px; padding: 20px; }
+        .chart-box h3 { color: #2c3e50; margin-bottom: 15px; }
+        .chart-data { display: flex; flex-direction: column; gap: 8px; }
+        .chart-item { display: flex; justify-content: space-between; padding: 10px; background: #f9f9f9; border-radius: 6px; }
+        .footer { text-align: center; color: #666; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        @media print { body { padding: 20px; } .stats { grid-template-columns: repeat(2, 1fr); } .chart-section { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Dashboard Report</h1>
+        <p>Teenbaan Order Management System</p>
+    </div>
+    
+    <div class="meta">
+        <p><strong>Generated:</strong> {{ generated_at }}</p>
+        <p><strong>By:</strong> {{ username }}</p>
+    </div>
+    
+    <!-- Stats Overview -->
+    <div class="stats">
+        <div class="stat-box">
+            <div class="value">{{ total_orders }}</div>
+            <div class="label">Total Orders</div>
+        </div>
+        <div class="stat-box">
+            <div class="value">₹{{ "%.2f"|format(total_revenue) }}</div>
+            <div class="label">Total Revenue</div>
+        </div>
+        <div class="stat-box">
+            <div class="value">{{ total_items }}</div>
+            <div class="label">Items Sold</div>
+        </div>
+        <div class="stat-box">
+            <div class="value">₹{{ "%.2f"|format(avg_order) }}</div>
+            <div class="label">Avg Order Value</div>
+        </div>
+    </div>
+    
+    <!-- Recent Orders -->
+    <div class="section">
+        <h2>📋 Recent Orders</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Orders</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recent_orders %}
+                <tr>
+                    <td>{{ order.id }}</td>
+                    <td>{{ order.date }}</td>
+                    <td>{{ order.day or 'N/A' }}</td>
+                    <td>{{ order.time }}</td>
+                    <td>{{ order.orders }}</td>
+                    <td>₹{{ "%.2f"|format(order.Amount_spend) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Chart Data -->
+    <div class="section">
+        <h2>📈 Sales Overview (Last 10 Days)</h2>
+        <div class="chart-section">
+            <div class="chart-box">
+                <h3>Orders by Date</h3>
+                <div class="chart-data">
+                    {% for item in chart_data %}
+                    <div class="chart-item">
+                        <span>{{ item.date }}</span>
+                        <strong>{{ item['SUM(orders)'] }} orders</strong>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="chart-box">
+                <h3>Revenue by Date</h3>
+                <div class="chart-data">
+                    {% for item in chart_data %}
+                    <div class="chart-item">
+                        <span>{{ item.date }}</span>
+                        <strong>₹{{ "%.2f"|format(item['SUM(Amount_spend)']) }}</strong>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>📊 Teenbaan Order Management System</p>
+        <p>Report generated on {{ generated_at }}</p>
+    </div>
+</body>
+</html>

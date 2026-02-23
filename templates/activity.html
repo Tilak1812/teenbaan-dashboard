@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Log - Teenbaan{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>📋 Activity Log</h1>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('clear_activity') }}" class="btn-danger" 
+           onclick="return confirm('Clear all activity logs?')">🗑️ Clear All</a>
+    </div>
+</div>
+
+<div class="table-section">
+    <div class="section-header">
+        <h2>📊 Recent Activities</h2>
+        <span class="record-count">{{ activities|length }} activities</span>
+    </div>
+    
+    {% if activities %}
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Details</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for activity in activities %}
+                <tr>
+                    <td><span class="id-badge">{{ activity.id }}</span></td>
+                    <td>{{ activity.username or 'System' }}</td>
+                    <td>
+                        {% if 'login' in activity.action %}
+                        <span class="action-badge login">🔓 Login</span>
+                        {% elif 'logout' in activity.action %}
+                        <span class="action-badge logout">🔒 Logout</span>
+                        {% elif 'add' in activity.action %}
+                        <span class="action-badge add">➕ Add</span>
+                        {% elif 'edit' in activity.action %}
+                        <span class="action-badge edit">✏️ Edit</span>
+                        {% elif 'delete' in activity.action %}
+                        <span class="action-badge delete">🗑️ Delete</span>
+                        {% elif 'refund' in activity.action %}
+                        <span class="action-badge refund">💰 Refund</span>
+                        {% elif 'backup' in activity.action %}
+                        <span class="action-badge backup">💾 Backup</span>
+                        {% else %}
+                        <span class="action-badge default">📝 Other</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ activity.details }}</td>
+                    <td>{{ activity.timestamp }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <h3>No Activities</h3>
+        <p>Activity logs will appear here as users perform actions.</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.action-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.action-badge.login { background: #d4edda; color: #155724; }
+.action-badge.logout { background: #f8d7da; color: #721c24; }
+.action-badge.add { background: #cce5ff; color: #004085; }
+.action-badge.edit { background: #fff3cd; color: #856404; }
+.action-badge.delete { background: #f8d7da; color: #721c24; }
+.action-badge.refund { background: #e2d5f1; color: #6f42c1; }
+.action-badge.backup { background: #d1ecf1; color: #0c5460; }
+.action-badge.default { background: #e2e3e5; color: #383d41; }
+</style>
+{% endblock %}

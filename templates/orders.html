@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Orders - Teenbaan{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>📦 Order Management</h1>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('add') }}" class="btn-primary">➕ Add Order</a>
+        <a href="{{ url_for('export_orders') }}" class="btn-secondary">📤 Export CSV</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+    <form method="GET" class="filters-form">
+        <div class="filter-item">
+            <label>Status</label>
+            <select name="status">
+                <option value="">All Status</option>
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                <option value="refunded" {% if status_filter == 'refunded' %}selected{% endif %}>Refunded</option>
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn-primary">Filter</button>
+            <a href="{{ url_for('orders') }}" class="btn-secondary">Clear</a>
+        </div>
+    </form>
+</div>
+
+<!-- Status Cards -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-content">
+            <span class="stat-value">{{ orders|length }}</span>
+            <span class="stat-label">Showing</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-content">
+            <span class="stat-value">{{ status_counts.get('pending', 0) }}</span>
+            <span class="stat-label">Pending</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-content">
+            <span class="stat-value">{{ status_counts.get('completed', 0) }}</span>
+            <span class="stat-label">Completed</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">❌</div>
+        <div class="stat-content">
+            <span class="stat-value">{{ status_counts.get('cancelled', 0) }}</span>
+            <span class="stat-label">Cancelled</span>
+        </div>
+    </div>
+</div>
+
+<!-- Orders Table -->
+<div class="table-section">
+    <div class="section-header">
+        <h2>📋 All Orders</h2>
+        <span class="record-count">{{ orders|length }} orders</span>
+    </div>
+    
+    {% if orders %}
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Orders</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td><span class="id-badge">#{{ order.id }}</span></td>
+                    <td>{{ order.date }}</td>
+                    <td>{{ order.day }}</td>
+                    <td>{{ order.time }}</td>
+                    <td><span class="orders-count">{{ order.orders }}</span></td>
+                    <td><span class="revenue-amount">₹{{ order.Amount_spend }}</span></td>
+                    <td>
+                        {% if order.status == 'completed' %}
+                        <span class="status-badge completed">Completed</span>
+                        {% elif order.status == 'pending' %}
+                        <span class="status-badge pending">Pending</span>
+                        {% elif order.status == 'cancelled' %}
+                        <span class="status-badge cancelled">Cancelled</span>
+                        {% elif order.status == 'refunded' %}
+                        <span class="status-badge refunded">Refunded</span>
+                        {% endif %}
+                    </td>
+                    <td class="action-cell">
+                        <a href="{{ url_for('order_detail', id=order.id) }}" class="btn-icon view" title="View">👁️</a>
+                        <a href="{{ url_for('edit', id=order.id) }}" class="btn-icon edit" title="Edit">✏️</a>
+                        {% if order.status != 'cancelled' %}
+                        <a href="{{ url_for('cancel_order', id=order.id) }}" 
+                           class="btn-icon cancel" title="Cancel"
+                           onclick="return confirm('Cancel this order?')">❌</a>
+                        {% endif %}
+                        <a href="{{ url_for('delete_order', id=order.id) }}" 
+                           class="btn-icon delete" title="Delete"
+                           onclick="return confirm('Delete this order?')">🗑️</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📦</div>
+        <h3>No Orders Found</h3>
+        <p>{% if status_filter %}No orders with status "{{ status_filter }}"{% else %}No orders yet{% endif %}</p>
+        <a href="{{ url_for('add') }}" class="btn-primary">Add First Order</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.status-badge.completed {
+    background: #d4edda;
+    color: #155724;
+}
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+.status-badge.cancelled {
+    background: #f8d7da;
+    color: #721c24;
+}
+.status-badge.refunded {
+    background: #cce5ff;
+    color: #004085;
+}
+.orders-count {
+    font-weight: 600;
+    color: var(--primary);
+}
+.revenue-amount {
+    font-weight: 600;
+    color: var(--success);
+}
+</style>
+{% endblock %}

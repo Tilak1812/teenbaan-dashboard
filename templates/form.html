@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Add Order - Teenbaan{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="page-header">
+        <div class="header-left">
+            <h1>➕ Add New Order</h1>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('dashboard') }}" class="btn-secondary">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <div class="form-container">
+        <form method="POST" class="order-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="date">Date *</label>
+                    <input type="date" id="date" name="date" required class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label>Time *</label>
+                    <div class="time-inputs">
+                        <select name="hour" class="form-select" required>
+                            {% for h in range(1, 13) %}
+                            <option value="{{ h }}">{{ "%02d"|format(h) }}</option>
+                            {% endfor %}
+                        </select>
+                        <span>:</span>
+                        <select name="minute" class="form-select" required>
+                            {% for m in range(0, 60, 5) %}
+                            <option value="{{ m }}">{{ "%02d"|format(m) }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="ampm" class="form-select" required>
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="orders">Number of Orders *</label>
+                <input type="number" id="orders" name="orders" required 
+                       min="1" placeholder="Enter number of orders" class="form-input">
+            </div>
+            
+            <div class="form-group">
+                <label for="amount">Amount Spent (₹) *</label>
+                <input type="number" id="amount" name="amount" required 
+                       min="0" step="0.01" placeholder="Enter amount spent" class="form-input">
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">Add Order</button>
+                <a href="{{ url_for('dashboard') }}" class="btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').value = today;
+    
+    // Set default time to current time
+    const now = new Date();
+    let hours = now.getHours();
+    const minutes = Math.floor(now.getMinutes() / 5) * 5;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    
+    document.querySelector('select[name="hour"]').value = hours;
+    document.querySelector('select[name="minute"]').value = minutes;
+    document.querySelector('select[name="ampm"]').value = ampm;
+});
+</script>
+{% endblock %}

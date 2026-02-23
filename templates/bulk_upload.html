@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Upload - Teenbaan{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="page-header">
+        <div class="header-left">
+            <h1>📤 Bulk Upload Products</h1>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('products') }}" class="btn-secondary">← Back to Products</a>
+        </div>
+    </div>
+
+    <div class="form-container">
+        <div class="upload-instructions">
+            <h3>📋 Instructions</h3>
+            <ul>
+                            <li>Upload a CSV file with product data</li>
+            <li>CSV format: <strong>Name, Description, SKU, Price, Stock</strong></li>
+            <li>First row should be the header (will be skipped)</li>
+            <li>SKU must be unique for each product</li>
+            </ul>
+            
+            <div class="example-csv">
+                <h4>Example CSV Format:</h4>
+                <pre>Name,Description,SKU,Price,Stock
+iPhone 15,Latest iPhone,IPH15-001,999,50
+MacBook Pro,Laptop,MBP-001,1999,25
+AirPods,Wireless earbuds,AP-001,199,100</pre>
+            </div>
+        </div>
+        
+        <form method="POST" enctype="multipart/form-data" class="upload-form">
+            <div class="form-group">
+                <label for="file">Select CSV File *</label>
+                <input type="file" id="file" name="file" accept=".csv" required class="form-input">
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">📤 Upload Products</button>
+                <a href="{{ url_for('products') }}" class="btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.upload-instructions {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.upload-instructions h3 {
+    margin-top: 0;
+    color: var(--dark);
+}
+
+.upload-instructions ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.upload-instructions li {
+    margin: 5px 0;
+    color: var(--gray);
+}
+
+.example-csv {
+    background: #e9ecef;
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.example-csv h4 {
+    margin: 0 0 10px 0;
+    color: var(--dark);
+}
+
+.example-csv pre {
+    margin: 0;
+    background: white;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+</style>
+{% endblock %}
