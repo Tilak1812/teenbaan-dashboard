@@ -1,0 +1,276 @@
+/* ===== Admin Panel Styles ===== */
+
+/* Admin Stats */
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.admin-stat-card {
+    background: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.admin-stat-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.admin-stat-card .label {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    margin-top: 0.5rem;
+}
+
+/* Admin Section */
+.admin-section {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.admin-section-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-section-header h3 {
+    font-size: 1.125rem;
+    color: var(--gray-900);
+    margin: 0;
+}
+
+.admin-section-body {
+    padding: 1.5rem;
+}
+
+/* Database Actions */
+.db-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.db-action-card {
+    background: var(--gray-50);
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+.db-action-card h4 {
+    font-size: 1rem;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+
+.db-action-card p {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    margin-bottom: 1rem;
+}
+
+/* SQL Query */
+.sql-query {
+    width: 100%;
+    min-height: 150px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    resize: vertical;
+    background: var(--bg-secondary);
+}
+
+/* Users Table in Admin */
+.users-table {
+    overflow-x: auto;
+}
+
+.user-row {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.user-row:last-child {
+    border-bottom: none;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-right: 1rem;
+    flex-shrink: 0;
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-info .name {
+    font-weight: 500;
+    color: var(--gray-900);
+}
+
+.user-info .email {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+}
+
+.user-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Tables List */
+.tables-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem;
+}
+
+.table-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+.table-name {
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+}
+
+/* Backups List */
+.backup-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.backup-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.backup-name {
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+}
+
+.backup-meta {
+    font-size: 0.75rem;
+    color: var(--gray-400);
+    margin-top: 0.25rem;
+}
+
+.backup-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Activity Log */
+.activity-log {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.activity-entry {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.activity-entry:last-child {
+    border-bottom: none;
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: var(--gray-400);
+    white-space: nowrap;
+}
+
+.activity-details {
+    flex: 1;
+}
+
+.activity-user {
+    font-weight: 500;
+    color: var(--gray-900);
+}
+
+.activity-action {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+}
+
+/* Settings Section */
+.settings-section {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.settings-section h3 {
+    font-size: 1.125rem;
+    color: var(--gray-900);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .db-actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .user-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .user-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

@@ -1,0 +1,62 @@
+/* ===== Alert Styles ===== */
+
+.alert {
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius);
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.alert::before {
+    content: '';
+    flex-shrink: 0;
+}
+
+.alert-success {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.alert-success::before {
+    content: '✓';
+    color: #16a34a;
+    font-weight: bold;
+}
+
+.alert-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.alert-error::before {
+    content: '✕';
+    color: #dc2626;
+    font-weight: bold;
+}
+
+.alert-warning {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.alert-warning::before {
+    content: '⚠';
+    color: #d97706;
+}
+
+.alert-info {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+.alert-info::before {
+    content: 'ℹ';
+    color: #2563eb;
+}

@@ -5,101 +5,60 @@
 {% block content %}
 <div class="page-header">
     <div class="header-left">
-        <h1>🏷️ Category Management</h1>
+        <h1>📁 Categories</h1>
     </div>
     <div class="header-actions">
-        <a href="{{ url_for('add_category') }}" class="btn-primary">➕ Add Category</a>
+        <a href="{{ url_for('add_category') }}" class="btn btn-primary">➕ Add Category</a>
     </div>
 </div>
 
-<!-- Categories Grid -->
-<div class="admin-grid">
-    {% for category in categories %}
-    <div class="category-card">
-        <div class="category-header">
-            <h3>{{ category[1] }}</h3>
-            {% if category[3] == 'active' %}
-            <span class="status-badge active">Active</span>
-            {% else %}
-            <span class="status-badge inactive">Inactive</span>
-            {% endif %}
+<div class="card">
+    <div class="card-body">
+        {% if categories %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in categories %}
+                    <tr>
+                        <td><span class="id-badge">#{{ cat[0] }}</span></td>
+                        <td><strong>{{ cat[1] }}</strong></td>
+                        <td>{{ cat[2] or '-' }}</td>
+                        <td>
+                            <span class="badge {{ 'badge-success' if cat[3] == 'active' else 'badge-warning' }}">
+                                {{ cat[3] }}
+                            </span>
+                        </td>
+                        <td>{{ cat[4] or '-' }}</td>
+                        <td class="action-cell">
+                            <a href="{{ url_for('edit_category', id=cat[0]) }}" class="btn-icon edit" title="Edit">✏️</a>
+                            <a href="{{ url_for('toggle_category_status', id=cat[0]) }}" class="btn-icon" title="Toggle Status">
+                                {% if cat[3] == 'active' %}⏸️{% else %}▶️{% endif %}
+                            </a>
+                            <a href="{{ url_for('delete_category', id=cat[0]) }}" class="btn-icon delete" title="Delete" onclick="return confirm('Delete this category?')">🗑️</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        <p class="category-description">{{ category[2] or 'No description' }}</p>
-        <div class="category-footer">
-            <span class="product-count">
-                📦 {{ product_counts.get(category[0], 0) }} products
-            </span>
-            <div class="category-actions">
-                <a href="{{ url_for('edit_category', id=category[0]) }}" class="btn-icon edit" title="Edit">✏️</a>
-                <a href="{{ url_for('toggle_category_status', id=category[0]) }}" 
-                   class="btn-icon {% if category[3] == 'active' %}deactivate{% else %}activate{% endif %}" 
-                   title="{% if category[3] == 'active' %}Deactivate{% else %}Activate{% endif %}">
-                    {% if category[3] == 'active' %}⏸️{% else %}▶️{% endif %}
-                </a>
-                <a href="{{ url_for('delete_category', id=category[0]) }}" 
-                   class="btn-icon delete" title="Delete"
-                   onclick="return confirm('Delete this category?')">🗑️</a>
-            </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📁</div>
+            <h3>No Categories</h3>
+            <p>Create your first category to organize products.</p>
+            <a href="{{ url_for('add_category') }}" class="btn btn-primary mt-2">➕ Add Category</a>
         </div>
+        {% endif %}
     </div>
-    {% else %}
-    <div class="empty-state">
-        <div class="empty-icon">🏷️</div>
-        <h3>No Categories</h3>
-        <p>Create your first category to organize products.</p>
-        <a href="{{ url_for('add_category') }}" class="btn-primary">Add Category</a>
-    </div>
-    {% endfor %}
 </div>
-
-<style>
-.category-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: var(--shadow);
-    padding: 20px;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.category-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.category-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.category-header h3 {
-    margin: 0;
-    color: var(--dark);
-}
-
-.category-description {
-    color: var(--gray);
-    font-size: 0.9rem;
-    margin-bottom: 15px;
-}
-
-.category-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
-}
-
-.product-count {
-    color: var(--gray);
-    font-size: 0.85rem;
-}
-
-.category-actions {
-    display: flex;
-    gap: 5px;
-}
-</style>
 {% endblock %}

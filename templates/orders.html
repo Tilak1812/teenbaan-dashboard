@@ -1,5 +1,99 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<style>
+    /* Filter Toggle Button Styles */
+    .filter-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-size: 0.875rem;
+        color: var(--gray-700);
+        transition: var(--transition);
+    }
+    
+    .filter-toggle:hover {
+        background: var(--gray-100);
+    }
+    
+    .filter-toggle.active {
+        background: var(--primary-100);
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+    
+    .filter-toggle .arrow {
+        transition: transform 0.3s ease;
+    }
+    
+    .filter-toggle.active .arrow {
+        transform: rotate(180deg);
+    }
+    
+    .filters-container {
+        display: none;
+        margin-bottom: 1rem;
+    }
+    
+    .filters-container.show {
+        display: block;
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .active-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .active-filter-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        background: var(--primary-100);
+        color: var(--primary);
+        border-radius: var(--radius);
+        font-size: 0.75rem;
+    }
+    
+    .active-filter-tag .remove {
+        background: none;
+        border: none;
+        color: var(--primary);
+        cursor: pointer;
+        font-size: 0.875rem;
+        line-height: 1;
+        padding: 0;
+        margin-left: 0.25rem;
+    }
+    
+    .no-filters {
+        font-size: 0.875rem;
+        color: var(--gray-500);
+        font-style: italic;
+    }
+</style>
+{% endblock %}
+
 {% block title %}Orders - Teenbaan{% endblock %}
 
 {% block content %}
@@ -8,27 +102,149 @@
         <h1>📦 Order Management</h1>
     </div>
     <div class="header-actions">
-        <a href="{{ url_for('add') }}" class="btn-primary">➕ Add Order</a>
-        <a href="{{ url_for('export_orders') }}" class="btn-secondary">📤 Export CSV</a>
+        <button class="filter-toggle" id="filterToggle">
+            <span>🔍</span>
+            <span>Filters</span>
+            <span class="arrow">▼</span>
+        </button>
+        <a href="{{ url_for('add') }}" class="btn btn-primary">➕ Add Order</a>
+        <a href="{{ url_for('export_orders') }}" class="btn btn-secondary">📤 Export CSV</a>
     </div>
 </div>
 
-<!-- Filters -->
-<div class="filters-bar">
+<!-- Active Filters Display -->
+<div class="active-filters" id="activeFilters">
+    {% set active_filters = [] %}
+    {% if filters.date %}
+        {% set active_filters = active_filters + [('Date', filters.date)] %}
+    {% endif %}
+    {% if filters.day %}
+        {% set active_filters = active_filters + [('Day', filters.day)] %}
+    {% endif %}
+    {% if filters.time %}
+        {% set active_filters = active_filters + [('Time', filters.time)] %}
+    {% endif %}
+    {% if filters.orders %}
+        {% set active_filters = active_filters + [('Orders', filters.orders)] %}
+    {% endif %}
+    {% if filters.amount %}
+        {% set active_filters = active_filters + [('Amount', '₹' ~ filters.amount)] %}
+    {% endif %}
+    {% if filters.status %}
+        {% set active_filters = active_filters + [('Status', filters.status)] %}
+    {% endif %}
+    
+    {% if active_filters|length > 0 %}
+        {% for name, value in active_filters %}
+        <span class="active-filter-tag">
+            {{ name }}: {{ value }}
+            <button class="remove" data-filter="{{ name|lower }}">×</button>
+        </span>
+        {% endfor %}
+    {% else %}
+        <span class="no-filters">No filters applied</span>
+    {% endif %}
+</div>
+
+<!-- Collapsible Filters Section -->
+<div class="filters-container" id="filtersContainer">
     <form method="GET" class="filters-form">
-        <div class="filter-item">
-            <label>Status</label>
-            <select name="status">
-                <option value="">All Status</option>
-                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
-                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
-                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                <option value="refunded" {% if status_filter == 'refunded' %}selected{% endif %}>Refunded</option>
-            </select>
+        <div class="filter-row">
+            <div class="filter-item">
+                <label>📅 Date</label>
+                <input type="date" name="date" value="{{ filters.date }}" class="filter-input">
+            </div>
+            
+            <div class="filter-item">
+                <label>📆 Day</label>
+                <select name="day" class="filter-select">
+                    <option value="">All</option>
+                    <option value="Monday" {% if filters.day == 'Monday' %}selected{% endif %}>Monday</option>
+                    <option value="Tuesday" {% if filters.day == 'Tuesday' %}selected{% endif %}>Tuesday</option>
+                    <option value="Wednesday" {% if filters.day == 'Wednesday' %}selected{% endif %}>Wednesday</option>
+                    <option value="Thursday" {% if filters.day == 'Thursday' %}selected{% endif %}>Thursday</option>
+                    <option value="Friday" {% if filters.day == 'Friday' %}selected{% endif %}>Friday</option>
+                    <option value="Saturday" {% if filters.day == 'Saturday' %}selected{% endif %}>Saturday</option>
+                    <option value="Sunday" {% if filters.day == 'Sunday' %}selected{% endif %}>Sunday</option>
+                </select>
+            </div>
+            
+            <div class="filter-item">
+                <label>🕐 Time</label>
+                <select name="time" class="filter-select">
+                    <option value="">All</option>
+                    <option value="12:00 AM" {% if filters.time == '12:00 AM' %}selected{% endif %}>12:00 AM</option>
+                    <option value="1:00 AM" {% if filters.time == '1:00 AM' %}selected{% endif %}>1:00 AM</option>
+                    <option value="2:00 AM" {% if filters.time == '2:00 AM' %}selected{% endif %}>2:00 AM</option>
+                    <option value="3:00 AM" {% if filters.time == '3:00 AM' %}selected{% endif %}>3:00 AM</option>
+                    <option value="4:00 AM" {% if filters.time == '4:00 AM' %}selected{% endif %}>4:00 AM</option>
+                    <option value="5:00 AM" {% if filters.time == '5:00 AM' %}selected{% endif %}>5:00 AM</option>
+                    <option value="6:00 AM" {% if filters.time == '6:00 AM' %}selected{% endif %}>6:00 AM</option>
+                    <option value="7:00 AM" {% if filters.time == '7:00 AM' %}selected{% endif %}>7:00 AM</option>
+                    <option value="8:00 AM" {% if filters.time == '8:00 AM' %}selected{% endif %}>8:00 AM</option>
+                    <option value="9:00 AM" {% if filters.time == '9:00 AM' %}selected{% endif %}>9:00 AM</option>
+                    <option value="10:00 AM" {% if filters.time == '10:00 AM' %}selected{% endif %}>10:00 AM</option>
+                    <option value="11:00 AM" {% if filters.time == '11:00 AM' %}selected{% endif %}>11:00 AM</option>
+                    <option value="12:00 PM" {% if filters.time == '12:00 PM' %}selected{% endif %}>12:00 PM</option>
+                    <option value="1:00 PM" {% if filters.time == '1:00 PM' %}selected{% endif %}>1:00 PM</option>
+                    <option value="2:00 PM" {% if filters.time == '2:00 PM' %}selected{% endif %}>2:00 PM</option>
+                    <option value="3:00 PM" {% if filters.time == '3:00 PM' %}selected{% endif %}>3:00 PM</option>
+                    <option value="4:00 PM" {% if filters.time == '4:00 PM' %}selected{% endif %}>4:00 PM</option>
+                    <option value="5:00 PM" {% if filters.time == '5:00 PM' %}selected{% endif %}>5:00 PM</option>
+                    <option value="6:00 PM" {% if filters.time == '6:00 PM' %}selected{% endif %}>6:00 PM</option>
+                    <option value="7:00 PM" {% if filters.time == '7:00 PM' %}selected{% endif %}>7:00 PM</option>
+                    <option value="8:00 PM" {% if filters.time == '8:00 PM' %}selected{% endif %}>8:00 PM</option>
+                    <option value="9:00 PM" {% if filters.time == '9:00 PM' %}selected{% endif %}>9:00 PM</option>
+                    <option value="10:00 PM" {% if filters.time == '10:00 PM' %}selected{% endif %}>10:00 PM</option>
+                    <option value="11:00 PM" {% if filters.time == '11:00 PM' %}selected{% endif %}>11:00 PM</option>
+                </select>
+            </div>
+            
+            <div class="filter-item filter-item-small">
+                <label>📦 Orders</label>
+                <div class="filter-group">
+                    <select name="orders_op" class="filter-select">
+                        <option value="">Op</option>
+                        <option value="eq" {% if filters.orders_op == 'eq' %}selected{% endif %}>=</option>
+                        <option value="gt" {% if filters.orders_op == 'gt' %}selected{% endif %}>&gt;</option>
+                        <option value="lt" {% if filters.orders_op == 'lt' %}selected{% endif %}>&lt;</option>
+                        <option value="gte" {% if filters.orders_op == 'gte' %}selected{% endif %}>&gt;=</option>
+                        <option value="lte" {% if filters.orders_op == 'lte' %}selected{% endif %}>&lt;=</option>
+                    </select>
+                    <input type="number" name="orders" value="{{ filters.orders }}" class="filter-input" placeholder="#">
+                </div>
+            </div>
+            
+            <div class="filter-item filter-item-small">
+                <label>💰 Amount</label>
+                <div class="filter-group">
+                    <select name="amount_op" class="filter-select">
+                        <option value="">Op</option>
+                        <option value="eq" {% if filters.amount_op == 'eq' %}selected{% endif %}>=</option>
+                        <option value="gt" {% if filters.amount_op == 'gt' %}selected{% endif %}>&gt;</option>
+                        <option value="lt" {% if filters.amount_op == 'lt' %}selected{% endif %}>&lt;</option>
+                        <option value="gte" {% if filters.amount_op == 'gte' %}selected{% endif %}>&gt;=</option>
+                        <option value="lte" {% if filters.amount_op == 'lte' %}selected{% endif %}>&lt;=</option>
+                    </select>
+                    <input type="number" name="amount" value="{{ filters.amount }}" class="filter-input" placeholder="₹" step="0.01">
+                </div>
+            </div>
+            
+            <div class="filter-item">
+                <label>📋 Status</label>
+                <select name="status" class="filter-select">
+                    <option value="">All</option>
+                    <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    <option value="refunded" {% if filters.status == 'refunded' %}selected{% endif %}>Refunded</option>
+                </select>
+            </div>
         </div>
+        
         <div class="filter-actions">
-            <button type="submit" class="btn-primary">Filter</button>
-            <a href="{{ url_for('orders') }}" class="btn-secondary">Clear</a>
+            <button type="submit" class="btn btn-primary">🔍 Apply Filters</button>
+            <a href="{{ url_for('orders') }}" class="btn btn-secondary">🔄 Clear All</a>
         </div>
     </form>
 </div>
@@ -63,10 +279,17 @@
             <span class="stat-label">Cancelled</span>
         </div>
     </div>
+    <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-content">
+            <span class="stat-value">₹{{ "%.2f"|format(total_amount) }}</span>
+            <span class="stat-label">Total</span>
+        </div>
+    </div>
 </div>
 
 <!-- Orders Table -->
-<div class="table-section">
+<div class="card">
     <div class="section-header">
         <h2>📋 All Orders</h2>
         <span class="record-count">{{ orders|length }} orders</span>
@@ -90,32 +313,26 @@
             <tbody>
                 {% for order in orders %}
                 <tr>
-                    <td><span class="id-badge">#{{ order.id }}</span></td>
-                    <td>{{ order.date }}</td>
-                    <td>{{ order.day }}</td>
-                    <td>{{ order.time }}</td>
-                    <td><span class="orders-count">{{ order.orders }}</span></td>
-                    <td><span class="revenue-amount">₹{{ order.Amount_spend }}</span></td>
+                    <td><span class="id-badge">#{{ order[0] }}</span></td>
+                    <td>{{ order[1] }}</td>
+                    <td>{{ order[2] }}</td>
+                    <td>{{ order[3] }}</td>
+                    <td><span class="orders-count">{{ order[4] }}</span></td>
+                    <td><span class="revenue-amount">₹{{ "%.2f"|format(order[5]) }}</span></td>
                     <td>
-                        {% if order.status == 'completed' %}
+                        {% if order[6] == 'completed' %}
                         <span class="status-badge completed">Completed</span>
-                        {% elif order.status == 'pending' %}
+                        {% elif order[6] == 'pending' %}
                         <span class="status-badge pending">Pending</span>
-                        {% elif order.status == 'cancelled' %}
+                        {% elif order[6] == 'cancelled' %}
                         <span class="status-badge cancelled">Cancelled</span>
-                        {% elif order.status == 'refunded' %}
+                        {% elif order[6] == 'refunded' %}
                         <span class="status-badge refunded">Refunded</span>
                         {% endif %}
                     </td>
                     <td class="action-cell">
-                        <a href="{{ url_for('order_detail', id=order.id) }}" class="btn-icon view" title="View">👁️</a>
-                        <a href="{{ url_for('edit', id=order.id) }}" class="btn-icon edit" title="Edit">✏️</a>
-                        {% if order.status != 'cancelled' %}
-                        <a href="{{ url_for('cancel_order', id=order.id) }}" 
-                           class="btn-icon cancel" title="Cancel"
-                           onclick="return confirm('Cancel this order?')">❌</a>
-                        {% endif %}
-                        <a href="{{ url_for('delete_order', id=order.id) }}" 
+                        <a href="{{ url_for('edit', id=order[0]) }}" class="btn-icon edit" title="Edit">✏️</a>
+                        <a href="{{ url_for('delete', id=order[0]) }}" 
                            class="btn-icon delete" title="Delete"
                            onclick="return confirm('Delete this order?')">🗑️</a>
                     </td>
@@ -128,36 +345,60 @@
     <div class="empty-state">
         <div class="empty-icon">📦</div>
         <h3>No Orders Found</h3>
-        <p>{% if status_filter %}No orders with status "{{ status_filter }}"{% else %}No orders yet{% endif %}</p>
-        <a href="{{ url_for('add') }}" class="btn-primary">Add First Order</a>
+        <p>{% if filters_applied %}No orders match your filter criteria{% else %}No orders yet{% endif %}</p>
+        <a href="{{ url_for('add') }}" class="btn btn-primary mt-2">Add First Order</a>
     </div>
     {% endif %}
 </div>
+{% endblock %}
 
-<style>
-.status-badge.completed {
-    background: #d4edda;
-    color: #155724;
-}
-.status-badge.pending {
-    background: #fff3cd;
-    color: #856404;
-}
-.status-badge.cancelled {
-    background: #f8d7da;
-    color: #721c24;
-}
-.status-badge.refunded {
-    background: #cce5ff;
-    color: #004085;
-}
-.orders-count {
-    font-weight: 600;
-    color: var(--primary);
-}
-.revenue-amount {
-    font-weight: 600;
-    color: var(--success);
-}
-</style>
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterToggle = document.getElementById('filterToggle');
+    const filtersContainer = document.getElementById('filtersContainer');
+    
+    // Toggle filter visibility
+    filterToggle.addEventListener('click', function() {
+        filtersContainer.classList.toggle('show');
+        filterToggle.classList.toggle('active');
+    });
+    
+    // Check if any filters are active and show container
+    {% if filters_applied %}
+    filtersContainer.classList.add('show');
+    filterToggle.classList.add('active');
+    {% endif %}
+    
+    // Remove filter tag functionality
+    document.querySelectorAll('.active-filter-tag .remove').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filterName = this.dataset.filter;
+            const url = new URL(window.location.href);
+            
+            // Remove the corresponding filter parameter
+            if (filterName === 'date') url.searchParams.delete('date');
+            else if (filterName === 'day') url.searchParams.delete('day');
+                        else if (filterName === 'time') url.searchParams.delete('time');
+            else if (filterName === 'orders') {
+                url.searchParams.delete('orders');
+                url.searchParams.delete('orders_op');
+            }
+            else if (filterName === 'amount') {
+                url.searchParams.delete('amount');
+                url.searchParams.delete('amount_op');
+            }
+            else if (filterName === 'status') url.searchParams.delete('status');
+            
+            window.location.href = url.toString();
+        });
+    });
+    
+    // Auto-open filters if any filter is applied
+    {% if filters_applied %}
+    filtersContainer.classList.add('show');
+    filterToggle.classList.add('active');
+    {% endif %}
+});
+</script>
 {% endblock %}

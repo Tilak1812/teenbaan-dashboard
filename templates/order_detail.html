@@ -2,229 +2,112 @@
 
 {% block title %}Order #{{ order.id }} - Teenbaan{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/orders.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <div class="header-left">
         <h1>📦 Order #{{ order.id }}</h1>
     </div>
     <div class="header-actions">
-        <a href="{{ url_for('orders') }}" class="btn-secondary">← Back to Orders</a>
+        <a href="{{ url_for('orders') }}" class="btn btn-secondary">← Back to Orders</a>
     </div>
 </div>
 
-{% if order %}
-<div class="order-detail-container">
-    <!-- Order Info Card -->
-    <div class="detail-card">
-        <div class="detail-header">
-            <h2>Order Details</h2>
-            {% if order.status == 'completed' %}
-            <span class="status-badge completed">Completed</span>
-            {% elif order.status == 'pending' %}
-            <span class="status-badge pending">Pending</span>
-            {% elif order.status == 'cancelled' %}
-            <span class="status-badge cancelled">Cancelled</span>
-            {% elif order.status == 'refunded' %}
-            <span class="status-badge refunded">Refunded</span>
-            {% endif %}
+<div class="order-details">
+    <div class="order-info-grid">
+        <div class="order-info-item">
+            <label>Date</label>
+            <span>{{ order.date }}</span>
         </div>
         
-        <div class="detail-grid">
-            <div class="detail-item">
-                <label>Date</label>
-                <span>{{ order.date }}</span>
-            </div>
-            <div class="detail-item">
-                <label>Day</label>
-                <span>{{ order.day }}</span>
-            </div>
-            <div class="detail-item">
-                <label>Time</label>
-                <span>{{ order.time }}</span>
-            </div>
-            <div class="detail-item">
-                <label>Orders Count</label>
-                <span>{{ order.orders }}</span>
-            </div>
-            <div class="detail-item">
-                <label>Total Amount</label>
-                <span class="amount">₹{{ order.Amount_spend }}</span>
-            </div>
-            <div class="detail-item">
-                <label>Created At</label>
-                <span>{{ order.created_at }}</span>
-            </div>
+        <div class="order-info-item">
+            <label>Day</label>
+            <span>{{ order.day }}</span>
+        </div>
+        
+        <div class="order-info-item">
+            <label>Time</label>
+            <span>{{ order.time }}</span>
+        </div>
+        
+        <div class="order-info-item">
+            <label>Number of Orders</label>
+            <span>{{ order.orders }}</span>
+        </div>
+        
+        <div class="order-info-item">
+            <label>Amount Spent</label>
+            <span>₹{{ "%.2f"|format(order.Amount_spend) }}</span>
+        </div>
+        
+        <div class="order-info-item">
+            <label>Status</label>
+            <span class="status-badge {{ order.status }}">{{ order.status }}</span>
         </div>
     </div>
     
-    <!-- Update Status Form -->
-    <div class="detail-card">
-        <h2>Update Status</h2>
+    {% if order.status != 'cancelled' and order.status != 'refunded' %}
+    <div class="refund-section">
+        <h4>Update Status</h4>
         <form method="POST" action="{{ url_for('update_order_status', id=order.id) }}">
-            <div class="form-group">
-                <label for="status">Status</label>
-                <select id="status" name="status" class="form-input">
-                    <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
-                    <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Completed</option>
-                    <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                </select>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="status">New Status</label>
+                    <select id="status" name="status" required>
+                        <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <input type="text" id="notes" name="notes" placeholder="Optional notes">
+                </div>
             </div>
-            <button type="submit" class="btn-primary">Update Status</button>
+            
+            <button type="submit" class="btn btn-primary">Update Status</button>
         </form>
     </div>
+    {% endif %}
     
-    <!-- Refund Form (Admin Only) -->
-    {% if order.status != 'refunded' and order.status != 'cancelled' %}
-    <div class="detail-card refund-card">
-        <h2>Process Refund</h2>
+    {% if session.get('role') == 'admin' and order.status != 'refunded' %}
+    <div class="refund-section">
+        <h4>Process Refund</h4>
         <form method="POST" action="{{ url_for('process_refund', id=order.id) }}">
             <div class="form-row">
                 <div class="form-group">
-                    <label for="amount">Refund Amount (Max: ₹{{ order.Amount_spend }})</label>
-                    <input type="number" id="amount" name="amount" required 
-                           min="0" max="{{ order.Amount_spend }}" step="0.01"
-                           placeholder="0.00" class="form-input">
+                    <label for="amount">Refund Amount (₹)</label>
+                    <input type="number" id="amount" name="amount" required min="0" max="{{ order.Amount_spend }}" step="0.01" placeholder="Max: {{ order.Amount_spend }}">
                 </div>
+                
                 <div class="form-group">
                     <label for="reason">Reason</label>
-                    <input type="text" id="reason" name="reason" 
-                           placeholder="Enter refund reason" class="form-input">
+                    <input type="text" id="reason" name="reason" placeholder="Reason for refund">
                 </div>
             </div>
-            <button type="submit" class="btn-danger" onclick="return confirm('Process this refund?')">
-                💰 Process Refund
-            </button>
+            
+            <button type="submit" class="btn btn-danger">Process Refund</button>
         </form>
     </div>
     {% endif %}
     
-    <!-- Refund History -->
     {% if refunds %}
-    <div class="detail-card">
-        <h2>Refund History</h2>
-        <table class="refund-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Amount</th>
-                    <th>Reason</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for refund in refunds %}
-                <tr>
-                    <td>#{{ refund[0] }}</td>
-                    <td>₹{{ refund[2] }}</td>
-                    <td>{{ refund[3] or 'N/A' }}</td>
-                    <td>{{ refund[4] }}</td>
-                    <td>{{ refund[6] }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="refund-history">
+        <h4>Refund History</h4>
+        {% for refund in refunds %}
+        <div class="refund-item">
+            <div>
+                <span class="refund-amount">₹{{ "%.2f"|format(refund.amount) }}</span>
+                <span class="refund-reason">{{ refund.reason or 'No reason' }}</span>
+            </div>
+            <span class="refund-date">{{ refund.created_at }}</span>
+        </div>
+        {% endfor %}
     </div>
     {% endif %}
 </div>
-
-<style>
-.order-detail-container {
-    display: grid;
-    gap: 20px;
-}
-
-.detail-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: var(--shadow);
-    padding: 25px;
-}
-
-.detail-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #eee;
-}
-
-.detail-header h2 {
-    margin: 0;
-    color: var(--dark);
-}
-
-.detail-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 20px;
-}
-
-.detail-item label {
-    display: block;
-    font-size: 0.85rem;
-    color: var(--gray);
-    margin-bottom: 5px;
-}
-
-.detail-item span {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--dark);
-}
-
-.detail-item .amount {
-    color: var(--primary);
-    font-size: 1.3rem;
-}
-
-.refund-card {
-    border-left: 4px solid #ffc107;
-}
-
-.btn-danger {
-    background: #dc3545;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 1rem;
-}
-
-.btn-danger:hover {
-    background: #c82333;
-}
-
-.refund-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.refund-table th,
-.refund-table td {
-    padding: 10px;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-}
-
-.refund-table th {
-    background: #f8f9fa;
-    color: var(--dark);
-}
-
-.status-badge.completed { background: #d4edda; color: #155724; }
-.status-badge.pending { background: #fff3cd; color: #856404; }
-.status-badge.cancelled { background: #f8d7da; color: #721c24; }
-.status-badge.refunded { background: #cce5ff; color: #004085; }
-</style>
-{% else %}
-<div class="empty-state">
-    <div class="empty-icon">❌</div>
-    <h3>Order Not Found</h3>
-    <p>The requested order does not exist.</p>
-    <a href="{{ url_for('orders') }}" class="btn-primary">Back to Orders</a>
-</div>
-{% endif %}
 {% endblock %}

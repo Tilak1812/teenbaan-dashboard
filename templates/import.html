@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Import Data - Teenbaan{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>📥 Import Data</h1>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('upload_csv') }}" class="btn btn-primary">📤 Upload CSV</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>📁 Existing Tables</h2>
+    </div>
+    <div class="card-body">
+        {% if tables %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Table Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for table in tables %}
+                    <tr>
+                        <td><code>{{ table }}</code></td>
+                        <td class="action-cell">
+                            <a href="{{ url_for('view_table', table_name=table) }}" class="btn btn-sm btn-primary">View</a>
+                            <a href="{{ url_for('export_table_csv', table_name=table) }}" class="btn btn-sm btn-secondary">Export</a>
+                            {% if table not in ['users', 'orders', 'categories', 'refunds', 'activity_log'] %}
+                            <form method="POST" action="{{ url_for('delete_table', table_name=table) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this table?')">Delete</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <h3>No Custom Tables</h3>
+            <p>Import a CSV file to create a new table.</p>
+            <a href="{{ url_for('upload_csv') }}" class="btn btn-primary mt-2">📤 Upload CSV</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>📥 Import New CSV</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">Select CSV File</label>
+                <input type="file" id="file" name="file" accept=".csv" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="table_name">Table Name (optional)</label>
+                <input type="text" id="table_name" name="table_name" placeholder="Leave empty to use filename">
+            </div>
+            
+            <button type="submit" class="btn btn-primary">📥 Import CSV</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

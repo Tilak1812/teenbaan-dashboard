@@ -1,80 +1,61 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
 {% block title %}Edit Order - Teenbaan{% endblock %}
 
 {% block content %}
-<div class="form-page">
-    <div class="page-header">
-        <div class="header-left">
-            <h1>✏️ Edit Order #{{ data[0] }}</h1>
-        </div>
-        <div class="header-actions">
-            <a href="{{ url_for('orders') }}" class="btn-secondary">← Back to Orders</a>
-        </div>
+<div class="page-header">
+    <div class="header-left">
+        <h1>✏️ Edit Order #{{ data[0] }}</h1>
     </div>
+    <div class="header-actions">
+        <a href="{{ url_for('orders') }}" class="btn btn-secondary">← Back to Orders</a>
+    </div>
+</div>
 
-    <div class="form-container">
-        <form method="POST" class="order-form">
-            <div class="info-row">
-                <div class="info-item">
-                    <label>Date</label>
-                    <span>{{ data[1] }}</span>
+<div class="card">
+    <div class="card-header">
+        <h2>📦 Order Details</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📅 Date</label>
+                    <input type="text" value="{{ data[1] }}" disabled>
                 </div>
-                <div class="info-item">
-                    <label>Day</label>
-                    <span>{{ data[2] }}</span>
+                
+                <div class="form-group">
+                    <label>📆 Day</label>
+                    <input type="text" value="{{ data[2] }}" disabled>
                 </div>
-                <div class="info-item">
-                    <label>Time</label>
-                    <span>{{ data[3] }}</span>
+                
+                <div class="form-group">
+                    <label>🕐 Time</label>
+                    <input type="text" value="{{ data[3] }}" disabled>
                 </div>
             </div>
             
-            <div class="form-group">
-                <label for="orders">Number of Orders *</label>
-                <input type="number" id="orders" name="orders" required 
-                       min="1" value="{{ data[4] }}" class="form-input">
-            </div>
-            
-            <div class="form-group">
-                <label for="amount">Amount Spent (₹) *</label>
-                <input type="number" id="amount" name="amount" required 
-                       min="0" step="0.01" value="{{ data[5] }}" class="form-input">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📦 Number of Orders</label>
+                    <input type="number" name="orders" required min="1" value="{{ data[4] }}">
+                </div>
+                
+                <div class="form-group">
+                    <label>💰 Amount Spent (₹)</label>
+                    <input type="number" name="amount" required min="0" step="0.01" value="{{ '%.2f'|format(data[5]) }}">
+                </div>
             </div>
             
             <div class="form-actions">
-                <button type="submit" class="btn-primary">Update Order</button>
-                <a href="{{ url_for('orders') }}" class="btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+                <a href="{{ url_for('orders') }}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
 </div>
-
-<style>
-.info-row {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 20px;
-    padding: 15px;
-    background: var(--light);
-    border-radius: 8px;
-}
-
-.info-item {
-    flex: 1;
-    text-align: center;
-}
-
-.info-item label {
-    display: block;
-    font-size: 0.85rem;
-    color: var(--gray);
-    margin-bottom: 5px;
-}
-
-.info-item span {
-    font-weight: 600;
-    color: var(--dark);
-}
-</style>
 {% endblock %}

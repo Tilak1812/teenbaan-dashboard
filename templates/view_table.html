@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}View {{ table_name }} - Teenbaan{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>📋 {{ table_name }}</h1>
+        <span class="record-count">{{ total_count }} records</span>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('export_table_csv', table_name=table_name) }}" class="btn btn-secondary">📤 Export CSV</a>
+        <a href="{{ url_for('import_data') }}" class="btn btn-secondary">← Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if rows %}
+        <div class="table-wrapper" style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        {% for col in columns %}
+                        {% if col[1] != 'id' %}
+                        <th>{{ col[1] }}</th>
+                        {% endif %}
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td><span class="id-badge">#{{ row[0] }}</span></td>
+                        {% for i in range(1, row|length) %}
+                        <td>{{ row[i] }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <h3>No Data</h3>
+            <p>This table is empty.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

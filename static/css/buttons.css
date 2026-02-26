@@ -1,0 +1,169 @@
+/* ===== Button Styles ===== */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: var(--radius);
+    font-weight: 500;
+    font-size: 0.875rem;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Primary Button */
+.btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    color: #ffffff;
+}
+
+/* Secondary Button */
+.btn-secondary {
+    background: var(--gray-100);
+    color: var(--gray-700);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+/* Success Button */
+.btn-success {
+    background: var(--success);
+    color: #ffffff;
+}
+
+.btn-success:hover {
+    background: #047857;
+    color: #ffffff;
+}
+
+/* Warning Button */
+.btn-warning {
+    background: var(--warning);
+    color: #ffffff;
+}
+
+.btn-warning:hover {
+    background: #b45309;
+    color: #ffffff;
+}
+
+/* Danger Button */
+.btn-danger {
+    background: var(--danger);
+    color: #ffffff;
+}
+
+.btn-danger:hover {
+    background: #b91c1c;
+    color: #ffffff;
+}
+
+/* Info Button */
+.btn-info {
+    background: var(--info);
+    color: #ffffff;
+}
+
+.btn-info:hover {
+    background: #0e7490;
+    color: #ffffff;
+}
+
+/* Outline Button */
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--gray-700);
+}
+
+.btn-outline:hover {
+    background: var(--gray-50);
+    color: var(--gray-700);
+}
+
+/* Button Sizes */
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+.btn-lg {
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+}
+
+.btn-xl {
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+}
+
+/* Block Button */
+.btn-block {
+    width: 100%;
+}
+
+/* Icon Button */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: var(--transition);
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    padding: 0;
+}
+
+.btn-icon:hover {
+    transform: scale(1.1);
+}
+
+.btn-icon.view {
+    background: #dbeafe;
+}
+
+.btn-icon.edit {
+    background: #fef3c7;
+}
+
+.btn-icon.cancel {
+    background: #fee2e2;
+}
+
+.btn-icon.delete {
+    background: #fee2e2;
+}

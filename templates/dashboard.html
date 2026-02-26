@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
 {% block title %}Dashboard - Teenbaan{% endblock %}
 
 {% block content %}
@@ -8,13 +12,13 @@
         <h1>📊 Dashboard</h1>
     </div>
     <div class="header-actions">
-        <a href="{{ url_for('add') }}" class="btn-primary">➕ Add Order</a>
-        <a href="{{ url_for('export_dashboard_pdf') }}" class="btn-secondary" target="_blank">📄 Export</a>
+        <a href="{{ url_for('add') }}" class="btn btn-primary">➕ Add Order</a>
+        <a href="{{ url_for('export_orders') }}" class="btn btn-secondary">📤 Export CSV</a>
     </div>
 </div>
 
-<!-- Stats Row -->
-<div class="stats-row">
+<!-- Stats Cards -->
+<div class="stats-grid">
     <div class="stat-card">
         <div class="stat-icon">📦</div>
         <div class="stat-content">
@@ -22,6 +26,7 @@
             <span class="stat-label">Total Orders</span>
         </div>
     </div>
+    
     <div class="stat-card">
         <div class="stat-icon">💰</div>
         <div class="stat-content">
@@ -29,6 +34,7 @@
             <span class="stat-label">Total Revenue</span>
         </div>
     </div>
+    
     <div class="stat-card">
         <div class="stat-icon">⏳</div>
         <div class="stat-content">
@@ -36,6 +42,7 @@
             <span class="stat-label">Pending Orders</span>
         </div>
     </div>
+    
     <div class="stat-card">
         <div class="stat-icon">✅</div>
         <div class="stat-content">
@@ -45,9 +52,8 @@
     </div>
 </div>
 
-<!-- Charts Grid -->
-<div class="charts-grid">
-    <!-- Daily Revenue Chart -->
+<!-- Charts Row -->
+<div class="chart-row">
     <div class="chart-card">
         <h3>📈 Daily Revenue (Last 7 Days)</h3>
         <div class="chart-container">
@@ -55,15 +61,6 @@
         </div>
     </div>
     
-    <!-- Time-based Revenue Chart -->
-    <div class="chart-card">
-        <h3>🕐 Revenue by Time</h3>
-        <div class="chart-container">
-            <canvas id="timeChart"></canvas>
-        </div>
-    </div>
-    
-    <!-- Order Status Chart -->
     <div class="chart-card">
         <h3>📊 Order Status Distribution</h3>
         <div class="chart-container">
@@ -72,11 +69,21 @@
     </div>
 </div>
 
-<!-- Recent Orders Table -->
-<div class="table-section">
-    <div class="section-header">
+<!-- Time-based Revenue Chart -->
+{% if revenue_time_labels|length > 0 %}
+<div class="chart-card">
+    <h3>🕐 Revenue by Time (Latest Date: {{ revenue_time_labels[0] if revenue_time_labels else 'N/A' }})</h3>
+    <div class="chart-container">
+        <canvas id="timeChart"></canvas>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Orders -->
+<div class="card">
+    <div class="card-header">
         <h2>📋 Recent Orders</h2>
-        <a href="{{ url_for('orders') }}" class="btn-secondary">View All →</a>
+        <a href="{{ url_for('orders') }}" class="btn btn-sm btn-primary">View All</a>
     </div>
     
     {% if recent_orders %}
@@ -101,17 +108,9 @@
                     <td>{{ order[2] }}</td>
                     <td>{{ order[3] }}</td>
                     <td><span class="orders-count">{{ order[4] }}</span></td>
-                    <td><span class="revenue-amount">₹{{ order[5] }}</span></td>
+                    <td><span class="revenue-amount">₹{{ "%.2f"|format(order[5]) }}</span></td>
                     <td>
-                        {% if order[6] == 'completed' %}
-                        <span class="status-badge completed">Completed</span>
-                        {% elif order[6] == 'pending' %}
-                        <span class="status-badge pending">Pending</span>
-                        {% elif order[6] == 'cancelled' %}
-                        <span class="status-badge cancelled">Cancelled</span>
-                        {% elif order[6] == 'refunded' %}
-                        <span class="status-badge refunded">Refunded</span>
-                        {% endif %}
+                        <span class="status-badge {{ order[6] }}">{{ order[6] }}</span>
                     </td>
                 </tr>
                 {% endfor %}
@@ -122,67 +121,34 @@
     <div class="empty-state">
         <div class="empty-icon">📦</div>
         <h3>No Orders Yet</h3>
-        <p>Start by adding your first order.</p>
-        <a href="{{ url_for('add') }}" class="btn-primary">Add Order</a>
+        <p>Add your first order to get started!</p>
+        <a href="{{ url_for('add') }}" class="btn btn-primary mt-2">➕ Add Order</a>
     </div>
     {% endif %}
 </div>
+{% endblock %}
 
-<!-- Chart.js Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Daily Revenue Chart
-    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-    new Chart(revenueCtx, {
-        type: 'bar',
-        data: {
-            labels: {{ revenue_labels | tojson if revenue_labels else '[]' | tojson }},
-            datasets: [{
-                label: 'Revenue (₹)',
-                data: {{ revenue_values | tojson if revenue_values else '[]' | tojson }},
-                backgroundColor: 'rgba(102, 126, 234, 0.6)',
-                borderColor: 'rgba(102, 126, 234, 1)',
-                borderWidth: 1,
-                borderRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return '₹' + value;
-                        }
-                    }
-                }
-            }
-        }
-    });
-    
-    // Time-based Revenue Chart
-    const timeCtx = document.getElementById('timeChart').getContext('2d');
-    new Chart(timeCtx, {
+// Revenue Chart
+{% if revenue_labels|length > 0 %}
+const revenueCtx = document.getElementById('revenueChart');
+if (revenueCtx) {
+    new Chart(revenueCtx.getContext('2d'), {
         type: 'line',
         data: {
-            labels: {{ revenue_time_labels | tojson if revenue_time_labels else '[]' | tojson }},
+            labels: {{ revenue_labels | tojson }},
             datasets: [{
-                label: 'Revenue (₹)',
-                data: {{ revenue_time_values | tojson if revenue_time_values else '[]' | tojson }},
-                backgroundColor: 'rgba(118, 75, 162, 0.2)',
-                borderColor: 'rgba(118, 75, 162, 1)',
-                borderWidth: 2,
+                label: 'Daily Revenue (₹)',
+                data: {{ revenue_values | tojson }},
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
                 fill: true,
                 tension: 0.4,
-                pointBackgroundColor: 'rgba(118, 75, 162, 1)'
+                pointBackgroundColor: '#2563eb',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4
             }]
         },
         options: {
@@ -191,6 +157,13 @@ document.addEventListener('DOMContentLoaded', function() {
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '₹' + context.parsed.y.toFixed(2);
+                        }
+                    }
                 }
             },
             scales: {
@@ -200,26 +173,37 @@ document.addEventListener('DOMContentLoaded', function() {
                         callback: function(value) {
                             return '₹' + value;
                         }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
                     }
                 }
             }
         }
     });
-    
-    // Order Status Chart
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    new Chart(statusCtx, {
+}
+{% endif %}
+
+{% if order_status_data|length > 0 %}
+// Status Chart
+const statusCtx = document.getElementById('statusChart');
+if (statusCtx) {
+    new Chart(statusCtx.getContext('2d'), {
         type: 'doughnut',
         data: {
-            labels: {{ order_status_data | map(attribute=0) | list | tojson if order_status_data else '[]' | tojson }},
+            labels: {{ order_status_data | map(attribute=0) | list | tojson }},
             datasets: [{
-                data: {{ order_status_data | map(attribute=1) | list | tojson if order_status_data else '[]' | tojson }},
+                data: {{ order_status_data | map(attribute=1) | list | tojson }},
                 backgroundColor: [
-                    'rgba(46, 204, 113, 0.7)',
-                    'rgba(241, 196, 15, 0.7)',
-                    'rgba(231, 76, 60, 0.7)',
-                    'rgba(52, 152, 219, 0.7)',
-                    'rgba(155, 89, 182, 0.7)'
+                    '#059669', // completed - green
+                    '#d97706', // pending - orange
+                    '#dc2626', // cancelled - red
+                    '#0891b2'  // other - blue
                 ],
                 borderWidth: 0
             }]
@@ -229,38 +213,66 @@ document.addEventListener('DOMContentLoaded', function() {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'right'
                 }
             }
         }
     });
-});
-</script>
+}
+{% endif %}
 
-<style>
-.status-badge.completed {
-    background: #d4edda;
-    color: #155724;
+{% if revenue_time_labels|length > 0 %}
+// Time Chart
+const timeCtx = document.getElementById('timeChart');
+if (timeCtx) {
+    new Chart(timeCtx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: {{ revenue_time_labels | tojson }},
+            datasets: [{
+                label: 'Revenue (₹)',
+                data: {{ revenue_time_values | tojson }},
+                backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                borderColor: '#2563eb',
+                borderWidth: 1,
+                borderRadius: 4            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '₹' + context.parsed.y.toFixed(2);
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₹' + value;
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
 }
-.status-badge.pending {
-    background: #fff3cd;
-    color: #856404;
-}
-.status-badge.cancelled {
-    background: #f8d7da;
-    color: #721c24;
-}
-.status-badge.refunded {
-    background: #cce5ff;
-    color: #004085;
-}
-.orders-count {
-    font-weight: 600;
-    color: var(--primary);
-}
-.revenue-amount {
-    font-weight: 600;
-    color: var(--success);
-}
-</style>
+{% endif %}
+</script>
 {% endblock %}

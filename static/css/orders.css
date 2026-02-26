@@ -1,0 +1,198 @@
+/* Orders specific styles */
+
+/* Stats row */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--white);
+    padding: 1.25rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-card .stat-icon {
+    font-size: 2rem;
+}
+
+.stat-card .stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-card .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark);
+}
+
+.stat-card .stat-label {
+    font-size: 0.875rem;
+    color: var(--secondary);
+}
+
+/* Orders table section */
+.table-section {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+/* Orders count */
+.orders-count {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+/* Revenue amount */
+.revenue-amount {
+    font-weight: 600;
+    color: var(--success);
+}
+
+/* Action buttons in table */
+.action-cell {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+/* View details page */
+.order-details {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 2rem;
+}
+
+.order-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.order-info-item {
+    padding: 1rem;
+    background: var(--light);
+    border-radius: var(--radius);
+}
+
+.order-info-item label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--secondary);
+    margin-bottom: 0.5rem;
+}
+
+.order-info-item span {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--dark);
+}
+
+/* Refund section */
+.refund-section {
+    background: var(--light);
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    margin-top: 1.5rem;
+}
+
+.refund-section h4 {
+    font-size: 1rem;
+    color: var(--dark);
+    margin-bottom: 1rem;
+}
+
+/* Refund history */
+.refund-history {
+    margin-top: 1.5rem;
+}
+
+.refund-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--light);
+    border-radius: var(--radius);
+    margin-bottom: 0.5rem;
+}
+
+.refund-amount {
+    font-weight: 600;
+    color: var(--danger);
+}
+
+.refund-reason {
+    font-size: 0.875rem;
+    color: var(--secondary);
+}
+
+.refund-date {
+    font-size: 0.75rem;
+    color: var(--secondary);
+}
+
+/* Status timeline */
+.status-timeline {
+    display: flex;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+}
+
+.status-step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-step .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--border);
+}
+
+.status-step.completed .dot {
+    background: var(--success);
+}
+
+.status-step.current .dot {
+    background: var(--warning);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .order-info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .status-timeline {
+        flex-direction: column;
+    }
+}

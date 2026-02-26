@@ -1,0 +1,118 @@
+/* ===== Table Styles ===== */
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead {
+    background: var(--gray-50);
+}
+
+th {
+    padding: 1rem 1.5rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border-color);
+}
+
+td {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.875rem;
+    color: var(--gray-700);
+}
+
+tbody tr {
+    transition: var(--transition);
+}
+
+tbody tr:hover {
+    background: var(--gray-50);
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+tbody tr:nth-child(even) {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+tbody tr:nth-child(even):hover {
+    background: var(--gray-50);
+}
+
+/* Section Header */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.section-header h2 {
+    font-size: 1.125rem;
+    color: var(--gray-900);
+}
+
+/* Action Cell */
+.action-cell {
+    white-space: nowrap;
+}
+
+/* ID Badge */
+.id-badge {
+    background: var(--gray-100);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius);
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--primary);
+}
+
+/* Record Count */
+.record-count {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    background: var(--gray-100);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-full);
+}
+
+/* Orders Count */
+.orders-count {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+/* Revenue Amount */
+.revenue-amount {
+    font-weight: 600;
+    color: var(--success);
+}
+
+/* Table Responsive */
+@media (max-width: 640px) {
+    .table-responsive {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .table-responsive > table {
+        display: block;
+        min-width: 600px;
+    }
+}

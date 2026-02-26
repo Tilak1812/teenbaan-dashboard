@@ -1,547 +1,601 @@
 {% extends "base.html" %}
 
-{% block title %}Compare - Teenbaan{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block title %}Compare Dates - Teenbaan{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="header-left">
-        <h1>📊 Compare Dashboard</h1>
+        <h1>📊 Compare Dates</h1>
     </div>
     <div class="header-actions">
-        {% if dates %}
-        <a href="{{ url_for('export_comparison_pdf') }}?dates={{ dates|join(',') }}" class="btn-secondary" target="_blank">📄 Export</a>
-        {% endif %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
     </div>
 </div>
 
-<!-- Compact Calendar Section -->
-<div class="compare-container">
-    <div class="calendar-panel">
-        <!-- Mini Calendar -->
-        <div class="mini-calendar">
-            <div class="cal-header">
-                <button type="button" id="prevMonth" class="cal-nav">◀</button>
-                <span id="monthYear">January 2025</span>
-                <button type="button" id="nextMonth" class="cal-nav">▶</button>
-            </div>
-            <div class="cal-weekdays">
-                <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-            </div>
-            <div class="cal-days" id="calDays"></div>
-            <div class="cal-actions">
-                <button type="button" id="clearAll" class="btn-secondary btn-sm">Clear</button>
-                <button type="button" id="compareBtn" class="btn-primary btn-sm" disabled>Compare</button>
+<!-- Calendar and Selected Dates Section -->
+<div class="calendar-section">
+    <!-- Calendar -->
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <h3>📅 Select Dates</h3>
+            <div class="calendar-nav">
+                <button id="prevMonth" class="btn btn-sm btn-secondary">←</button>
+                <button id="nextMonth" class="btn btn-sm btn-secondary">→</button>
             </div>
         </div>
         
-        <!-- Selected Dates -->
-        <div class="selected-panel">
-            <div class="selected-header">Selected (<span id="count">0</span>)</div>
-            <div id="selectedList" class="selected-items"></div>
+        <div id="calendar" class="calendar-grid">
+            <!-- Calendar will be rendered here -->
+        </div>
+        
+        <div class="calendar-legend">
+            <div class="legend-item">
+                <div class="legend-color selected"></div>
+                <span>Selected</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color available"></div>
+                <span>Has Data</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color today"></div>
+                <span>Today</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Selected Dates Panel -->
+    <div class="selected-dates-panel">
+        <h3>Selected Dates (<span id="selectedCount">{{ selected_dates|length }}</span>)</h3>
+        
+        {% if selected_dates|length > 0 %}
+        <div class="selected-dates-list">
+            {% for date in selected_dates %}
+            <span class="selected-date-chip">
+                {{ date }}
+                <button class="remove" data-date="{{ date }}">×</button>
+            </span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="selected-dates-list">
+            <p class="no-dates-selected">Click on dates in the calendar to select them.</p>
+        </div>
+        {% endif %}
+        
+        <!-- Compare Button -->
+        <div class="compare-actions">
+            <button id="compareBtn" class="btn btn-primary" {% if selected_dates|length < 2 %}disabled{% endif %}>
+                📊 Compare Dates
+            </button>
+            <button id="clearBtn" class="btn btn-secondary" {% if selected_dates|length == 0 %}disabled{% endif %}>
+                🗑️ Clear All
+            </button>
         </div>
     </div>
 </div>
 
-<!-- Hidden Form -->
-<form id="compareForm" method="GET" action="{{ url_for('compare') }}">
-    <input type="hidden" name="dates" id="datesInput" value="">
-</form>
-
-{% if all_data and all_data|length > 0 %}
-<!-- Results Section -->
-<div class="results-section">
+<!-- Comparison Results -->
+{% if all_data|length > 0 %}
+<div class="comparison-results">
     
-    <!-- Stats Row -->
-    <div class="stats-row">
-        {% for item in all_data %}
-        <div class="stat-card-mini">
-            <span class="stat-date">{{ item.date }}</span>
-            <span class="stat-detail">{{ item.total_orders }} orders | ₹{{ "%.0f"|format(item.total_revenue) }}</span>
+    <!-- Summary Stats -->
+    <div class="stats-grid">
+        {% for data in all_data %}
+        <div class="stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-content">
+                <span class="stat-value">{{ data.date }}</span>
+                <span class="stat-label">{{ data.total_orders }} orders | ₹{{ "%.2f"|format(data.total_revenue) }}</span>
+            </div>
         </div>
         {% endfor %}
     </div>
     
-    <!-- All Dashboard Charts -->
-    <div class="all-charts-section">
-        <h3>📈 Revenue Overview</h3>
-        
-        <!-- Daily Revenue Chart -->
-        <div class="chart-full">
-            <h4>Daily Revenue Comparison</h4>
-            <div class="chart-container-lg">
-                <canvas id="dailyRevenueChart"></canvas>
+    <!-- Comparison Charts Row -->
+    {% if all_data|length >= 2 %}
+    <div class="chart-row">
+        <!-- Line Chart - Revenue Comparison -->
+        <div class="chart-card">
+            <h3>📈 Revenue Comparison - All Selected Dates</h3>
+            <div class="chart-container">
+                <canvas id="comparisonLineChart"></canvas>
             </div>
         </div>
         
-        <!-- Time-based Charts for Each Date -->
-        <div class="charts-grid">
-            {% for item in all_data %}
-            <div class="chart-card">
-                <h4>📅 {{ item.date }} - Revenue by Time</h4>
-                <div class="chart-container">
-                    <canvas id="timeChart{{ loop.index }}"></canvas>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        
-        <!-- Orders Count Comparison -->
-        <div class="chart-full">
-            <h4>Orders Count Comparison</h4>
-            <div class="chart-container-lg">
-                <canvas id="ordersCountChart"></canvas>
-            </div>
-        </div>
-        
-        <!-- Revenue Comparison -->
-        <div class="chart-full">
-            <h4>Revenue Comparison</h4>
-            <div class="chart-container-lg">
-                <canvas id="revenueComparisonChart"></canvas>
+        <!-- Bar Chart - Total Revenue Comparison -->
+        <div class="chart-card">
+            <h3>💰 Total Revenue by Date</h3>
+            <div class="chart-container">
+                <canvas id="totalRevenueChart"></canvas>
             </div>
         </div>
     </div>
     
-    <!-- Tables -->
-    <div class="tables-section">
-        <h3>📋 Detailed Data</h3>
-        <div class="tables-grid">
-            {% for item in all_data %}
-            <div class="table-card">
-                <h4>{{ item.date }}</h4>
+    <div class="chart-row">
+        <!-- Line Chart - Orders Comparison -->
+        <div class="chart-card">
+            <h3>📦 Orders Comparison - All Selected Dates</h3>
+            <div class="chart-container">
+                <canvas id="comparisonOrdersLineChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Doughnut Chart - Revenue Distribution -->
+        <div class="chart-card">
+            <h3>📊 Revenue Distribution</h3>
+            <div class="chart-container">
+                <canvas id="revenueDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Individual Bar Charts for Each Date -->
+    {% for data in all_data %}
+    <div class="chart-card">
+        <h3>📊 Revenue by Time - {{ data.date }}</h3>
+        <div class="chart-container">
+            <canvas id="chart_{{ loop.index }}"></canvas>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <!-- Detailed Tables for Each Date -->
+    {% for data in all_data %}
+    <div class="card">
+        <div class="card-header">
+            <h3>📋 Orders for {{ data.date }}</h3>
+            <span class="record-count">{{ data.data|length }} orders</span>
+        </div>
+        <div class="card-body">
+            <div class="table-wrapper">
                 <table>
                     <thead>
-                        <tr><th>ID</th><th>Day</th><th>Time</th><th>Orders</th><th>Amount</th><th>Status</th></tr>
+                        <tr>
+                            <th>ID</th>
+                            <th>Day</th>
+                            <th>Time</th>
+                            <th>Orders</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        {% for row in item.data %}
+                        {% for order in data.data %}
                         <tr>
-                            <td>#{{ row[0] }}</td><td>{{ row[2] }}</td><td>{{ row[3] }}</td>
-                            <td>{{ row[4] }}</td><td>₹{{ "%.0f"|format(row[5]) }}</td>
-                            <td><span class="status-badge {{ row[6] }}">{{ row[6] }}</span></td>
+                            <td><span class="id-badge">#{{ order[0] }}</span></td>
+                            <td>{{ order[2] }}</td>
+                            <td>{{ order[3] }}</td>
+                            <td><span class="orders-count">{{ order[4] }}</span></td>
+                            <td><span class="revenue-amount">₹{{ "%.2f"|format(order[5]) }}</span></td>
+                            <td>
+                                <span class="status-badge {{ order[6] }}">{{ order[6] }}</span>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% elif selected_dates|length > 1 %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <div class="empty-icon">📊</div>
+            <h3>No Data Found</h3>
+            <p>No orders found for the selected dates.</p>
         </div>
     </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// Daily Revenue Comparison Chart
-new Chart(document.getElementById('dailyRevenueChart'), {
-    type: 'bar',
-    data: {
-        labels: [{% for item in all_data %}'{{ item.date }}'{% if not loop.last %}, {% endif %}{% endfor %}],
-        datasets: [{
-            label: 'Revenue (₹)',
-            data: [{% for item in all_data %}{{ item.total_revenue }}{% if not loop.last %}, {% endif %}{% endfor %}],
-            backgroundColor: [
-                'rgba(102, 126, 234, 0.7)',
-                'rgba(118, 75, 162, 0.7)',
-                'rgba(46, 204, 113, 0.7)',
-                'rgba(241, 196, 15, 0.7)',
-                'rgba(231, 76, 60, 0.7)'
-            ],
-            borderColor: [
-                'rgba(102, 126, 234, 1)',
-                'rgba(118, 75, 162, 1)',
-                'rgba(46, 204, 113, 1)',
-                'rgba(241, 196, 15, 1)',
-                'rgba(231, 76, 60, 1)'
-            ],
-            borderWidth: 1,
-            borderRadius: 8
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return '₹' + context.parsed.y.toFixed(2);
-                    }
-                }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    callback: function(value) {
-                        return '₹' + value;
-                    }
-                }
-            }
-        }
-    }
-});
-
-// Time-based Charts for Each Date
-{% for item in all_data %}
-new Chart(document.getElementById('timeChart{{ loop.index }}'), {
-    type: 'line',
-    data: {
-        labels: {{ item.time_labels | tojson if item.time_labels else [] }},
-        datasets: [{
-            label: 'Revenue (₹)',
-            data: {{ item.time_values | tojson if item.time_values else [] }},
-            borderColor: 'rgba(118, 75, 162, 1)',
-            backgroundColor: 'rgba(118, 75, 162, 0.2)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: 'rgba(118, 75, 162, 1)',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointRadius: 4
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return '₹' + context.parsed.y.toFixed(2);
-                    }
-                }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    callback: function(value) {
-                        return '₹' + value;
-                    }
-                }
-            }
-        }
-    }
-});
-{% endfor %}
-
-// Orders Count Comparison Chart
-new Chart(document.getElementById('ordersCountChart'), {
-    type: 'bar',
-    data: {
-        labels: [{% for item in all_data %}'{{ item.date }}'{% if not loop.last %}, {% endif %}{% endfor %}],
-        datasets: [{
-            label: 'Total Orders',
-            data: [{% for item in all_data %}{{ item.total_orders }}{% if not loop.last %}, {% endif %}{% endfor %}],
-            backgroundColor: 'rgba(52, 152, 219, 0.7)',
-            borderColor: 'rgba(52, 152, 219, 1)',
-            borderWidth: 1,
-            borderRadius: 8
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false }
-        },
-        scales: {
-            y: { beginAtZero: true }
-        }
-    }
-});
-
-// Revenue Comparison Chart
-new Chart(document.getElementById('revenueComparisonChart'), {
-    type: 'bar',
-    data: {
-        labels: [{% for item in all_data %}'{{ item.date }}'{% if not loop.last %}, {% endif %}{% endfor %}],
-        datasets: [{
-            label: 'Total Revenue (₹)',
-            data: [{% for item in all_data %}{{ item.total_revenue }}{% if not loop.last %}, {% endif %}{% endfor %}],
-            backgroundColor: [
-                'rgba(102, 126, 234, 0.7)',
-                'rgba(118, 75, 162, 0.7)',
-                'rgba(46, 204, 113, 0.7)',
-                'rgba(241, 196, 15, 0.7)',
-                'rgba(231, 76, 60, 0.7)'
-            ],
-            borderColor: [
-                'rgba(102, 126, 234, 1)',
-                'rgba(118, 75, 162, 1)',
-                'rgba(46, 204, 113, 1)',
-                'rgba(241, 196, 15, 1)',
-                'rgba(231, 76, 60, 1)'
-            ],
-            borderWidth: 1,
-            borderRadius: 8
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return '₹' + context.parsed.y.toFixed(2);
-                    }
-                }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    callback: function(value) {
-                        return '₹' + value;
-                    }
-                }
-            }
-        }
-    }
-});
-</script>
-
-<style>
-.results-section { margin-top: 20px; }
-
-/* Stats Row */
-.stats-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-.stat-card-mini {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white; padding: 12px 18px; border-radius: 10px;
-}
-.stat-date { font-weight: 600; display: block; font-size: 0.9rem; }
-.stat-detail { font-size: 0.75rem; opacity: 0.9; }
-
-/* Charts Section */
-.all-charts-section { margin-bottom: 25px; }
-.all-charts-section h3 { margin: 0 0 15px 0; color: var(--dark); }
-
-.chart-full {
-    background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: var(--shadow);
-}
-.chart-full h4 { margin: 0 0 15px 0; color: var(--dark); font-size: 0.95rem; }
-.chart-container-lg { height: 250px; position: relative; }
-
-.charts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 15px;
-    margin-bottom: 15px;
-}
-
-.chart-card {
-    background: white; border-radius: 12px; padding: 15px; box-shadow: var(--shadow);
-}
-.chart-card h4 { margin: 0 0 10px 0; color: var(--dark); font-size: 0.9rem; }
-.chart-container { height: 180px; position: relative; }
-
-/* Tables Section */
-.tables-section h3 { margin: 0 0 15px 0; color: var(--dark); }
-
-.tables-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 15px;
-}
-
-.table-card {
-    background: white; border-radius: 12px; padding: 15px; box-shadow: var(--shadow);
-}
-.table-card h4 { margin: 0 0 10px 0; color: var(--dark); font-size: 0.9rem; }
-.table-card table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-.table-card th, .table-card td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
-.table-card th { background: #f8f9fa; color: var(--dark); }
-.table-card tr:hover { background: #f8f9fa; }
-
-.status-badge { padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 500; }
-.status-badge.completed { background: #d4edda; color: #155724; }
-.status-badge.pending { background: #fff3cd; color: #856404; }
-.status-badge.cancelled { background: #f8d7da; color: #721c24; }
-.status-badge.refunded { background: #cce5ff; color: #004085; }
-</style>
-
+{% elif selected_dates|length == 1 %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <div class="empty-icon">📅</div>
+            <h3>Select More Dates</h3>
+            <p>Select at least 2 dates to compare. Click the "Compare Dates" button when ready.</p>
+        </div>
+    </div>
+</div>
 {% else %}
-<div class="empty-state">
-    <div class="empty-icon">📅</div>
-    <h3>Select Dates to Compare</h3>
-    <p>Click on dates in the calendar to compare their performance</p>
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <div class="empty-icon">📅</div>
+            <h3>Select Dates to Compare</h3>
+            <p>Choose at least 2 dates from the calendar to compare their performance.</p>
+        </div>
+    </div>
 </div>
 {% endif %}
+{% endblock %}
 
-<!-- Calendar Styles -->
-<style>
-.compare-container { margin-bottom: 20px; }
-.calendar-panel { display: flex; gap: 15px; background: white; border-radius: 10px; padding: 15px; box-shadow: var(--shadow); }
-.mini-calendar { flex: 0 0 200px; }
-.cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.cal-header span { font-weight: 600; font-size: 0.85rem; }
-.cal-nav { background: var(--primary); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; }
-.cal-nav:hover { background: var(--secondary); }
-.cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.65rem; color: #666; margin-bottom: 5px; }
-.cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; min-height: 120px; }
-.cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; border-radius: 4px; cursor: pointer; background: #f5f5f5; transition: all 0.15s; }
-.cal-day:hover { background: #e0e0e0; }
-.cal-day.has-data { background: #d4edda; color: #155724; font-weight: 600; }
-.cal-day.selected { background: var(--primary); color: white; }
-.cal-day.empty { background: transparent; cursor: default; }
-.cal-actions { display: flex; gap: 8px; margin-top: 10px; }
-.btn-sm { padding: 6px 10px; font-size: 0.75rem; flex: 1; }
-#compareBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+{% block extra_js %}
+<script>
+// Available dates from the server - safely convert to array
+const availableDates = {{ available_dates | tojson }};
+let selectedDates = {{ selected_dates | tojson }};
+let currentMonth = new Date().getMonth();
+let currentYear = new Date().getFullYear();
 
-.selected-panel { flex: 1; background: #f8f9fa; border-radius: 8px; padding: 10px; }
-.selected-header { font-weight: 600; font-size: 0.8rem; margin-bottom: 8px; }
-.selected-items { max-height: 120px; overflow-y: auto; }
-.selected-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; background: white; border-radius: 4px; margin-bottom: 4px; font-size: 0.75rem; }
-.selected-item .remove-btn { background: #dc3545; color: white; border: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; }
-.selected-item .remove-btn:hover { background: #c82333; }
+// Comparison data from server
+const comparisonData = {{ all_data | tojson }};
 
-.empty-state { text-align: center; padding: 50px; background: white; border-radius: 12px; box-shadow: var(--shadow); }
-.empty-icon { font-size: 3rem; margin-bottom: 15px; }
-.empty-state h3 { margin: 0 0 10px 0; color: var(--dark); }
-.empty-state p { color: #666; margin: 0; }
-
-@media (max-width: 500px) {
-    .calendar-panel { flex-direction: column; }
-    .mini-calendar { flex: none; width: 100%; }
-    .stats-row { flex-direction: column; }
-    .charts-grid { grid-template-columns: 1fr; }
-    .tables-grid { grid-template-columns: 1fr; }
+// Fix: Use string comparison instead of Date objects to avoid timezone issues
+function isAvailableDate(dateStr) {
+    return availableDates.includes(dateStr);
 }
-</style>
 
-<!-- Calendar JavaScript -->
-<script type="text/javascript">
-var availableDates = {{ available_dates | tojson if available_dates else [] }};
-var preSelected = {{ dates | tojson if dates else [] }};
-var selected = new Set(preSelected);
-var currentMonth = new Date().getMonth();
-var currentYear = new Date().getFullYear();
-var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function isSelectedDate(dateStr) {
+    return selectedDates.includes(dateStr);
+}
 
-function renderCalendar() {
-    document.getElementById('monthYear').textContent = monthNames[currentMonth] + ' ' + currentYear;
+function renderCalendar(month, year) {
+    const calendar = document.getElementById('calendar');
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
     
-    var firstDay = new Date(currentYear, currentMonth, 1).getDay();
-    var daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    var daysContainer = document.getElementById('calDays');
-    var html = '';
+    // Fix: Get today's date as string in YYYY-MM-DD format (local time)
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + 
+                     String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                     String(today.getDate()).padStart(2, '0');
     
-    // Empty cells for days before first day
-    for (var i = 0; i < firstDay; i++) {
-        html += '<div class="cal-day empty"></div>';
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    let html = `
+        <div class="calendar-day-header">Sun</div>
+        <div class="calendar-day-header">Mon</div>
+        <div class="calendar-day-header">Tue</div>
+        <div class="calendar-day-header">Wed</div>
+        <div class="calendar-day-header">Thu</div>
+        <div class="calendar-day-header">Fri</div>
+        <div class="calendar-day-header">Sat</div>
+    `;
+    
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+        html += '<div class="calendar-day empty"></div>';
     }
     
     // Days of the month
-    for (var day = 1; day <= daysInMonth; day++) {
-        var dateStr = currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-        var cls = 'cal-day';
-        if (availableDates.indexOf(dateStr) !== -1) {
-            cls += ' has-data';
-        }
-        if (selected.has(dateStr)) {
-            cls += ' selected';
-        }
-        html += '<div class="' + cls + '" data-date="' + dateStr + '">' + day + '</div>';
-    }
-    
-    daysContainer.innerHTML = html;
-    
-    // Add click handlers to day elements
-    var dayElements = daysContainer.querySelectorAll('.cal-day:not(.empty)');
-    for (var j = 0; j < dayElements.length; j++) {
-        dayElements[j].addEventListener('click', function() {
-            var date = this.getAttribute('data-date');
-            if (selected.has(date)) {
-                selected.delete(date);
-                this.classList.remove('selected');
-            } else {
-                selected.add(date);
-                this.classList.add('selected');
-            }
-            updateSelectedList();
-        });
-    }
-    
-    updateSelectedList();
-}
-
-function updateSelectedList() {
-    var list = document.getElementById('selectedList');
-    var input = document.getElementById('datesInput');
-    var count = document.getElementById('count');
-    var btn = document.getElementById('compareBtn');
-    var arr = Array.from(selected);
-    
-    count.textContent = arr.length;
-    input.value = arr.join(',');
-    btn.disabled = arr.length === 0;
-    
-    if (arr.length === 0) {
-        list.innerHTML = '<p style="color:#999;font-size:0.75rem;text-align:center;padding:10px;">No dates selected</p>';
-    } else {
-        var html = '';
-        arr.sort().forEach(function(date) {
-            var dt = new Date(date + 'T00:00:00');
-            var fmt = dt.toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
-            html += '<div class="selected-item"><span>' + fmt + '</span><button type="button" class="remove-btn" data-date="' + date + '">×</button></div>';
-        });
-        list.innerHTML = html;
+    for (let day = 1; day <= daysInMonth; day++) {
+        // Fix: Create date string in YYYY-MM-DD format (local time)
+        const dateStr = year + '-' + 
+                        String(month + 1).padStart(2, '0') + '-' + 
+                        String(day).padStart(2, '0');
         
-        // Add remove button handlers
-        var removeBtns = list.querySelectorAll('.remove-btn');
-        for (var k = 0; k < removeBtns.length; k++) {
-            removeBtns[k].addEventListener('click', function(e) {
-                e.stopPropagation();
-                selected.delete(this.getAttribute('data-date'));
-                renderCalendar();
-            });
-        }
+        const available = isAvailableDate(dateStr);
+        const selected = isSelectedDate(dateStr);
+        const isToday = todayStr === dateStr;
+        
+        let classes = 'calendar-day';
+        if (selected) classes += ' selected';
+        if (available && !selected) classes += ' available';
+        if (!available) classes += ' disabled';
+        if (isToday) classes += ' today';
+        
+        html += `<div class="${classes}" data-date="${dateStr}">${day}</div>`;
+    }
+    
+    calendar.innerHTML = html;
+    
+    // Update header
+    document.querySelector('.calendar-header h3').textContent = `${monthNames[month]} ${year}`;
+    
+    // Add click handlers
+    document.querySelectorAll('.calendar-day:not(.disabled):not(.empty)').forEach(dayEl => {
+        dayEl.addEventListener('click', function() {
+            const date = this.dataset.date;
+            toggleDate(date);
+        });
+    });
+}
+
+function toggleDate(dateStr) {
+    const index = selectedDates.indexOf(dateStr);
+    if (index > -1) {
+        selectedDates.splice(index, 1);
+    } else {
+        selectedDates.push(dateStr);
+    }
+    updateSelectedDatesDisplay();
+    renderCalendar(currentMonth, currentYear);
+}
+
+function updateSelectedDatesDisplay() {
+    const countEl = document.getElementById('selectedCount');
+    const compareBtn = document.getElementById('compareBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    
+    countEl.textContent = selectedDates.length;
+    
+    // Update compare button state
+    if (selectedDates.length >= 2) {
+        compareBtn.disabled = false;
+    } else {
+        compareBtn.disabled = true;
+    }
+    
+    // Update clear button state
+    clearBtn.disabled = selectedDates.length === 0;
+}
+
+function compareDates() {
+    if (selectedDates.length >= 2) {
+        const datesParam = selectedDates.join(',');
+        window.location.href = '{{ url_for("compare") }}?dates=' + datesParam;
     }
 }
 
-// Previous month button
+function clearAllDates() {
+    selectedDates = [];
+    updateSelectedDatesDisplay();
+    renderCalendar(currentMonth, currentYear);
+    window.history.pushState({}, '', '{{ url_for("compare") }}');
+}
+
+// Navigation handlers
 document.getElementById('prevMonth').addEventListener('click', function() {
     currentMonth--;
     if (currentMonth < 0) {
         currentMonth = 11;
         currentYear--;
     }
-    renderCalendar();
+    renderCalendar(currentMonth, currentYear);
 });
 
-// Next month button
 document.getElementById('nextMonth').addEventListener('click', function() {
     currentMonth++;
     if (currentMonth > 11) {
         currentMonth = 0;
         currentYear++;
     }
-    renderCalendar();
+    renderCalendar(currentMonth, currentYear);
 });
 
-// Clear all button
-document.getElementById('clearAll').addEventListener('click', function() {
-    selected.clear();
-    renderCalendar();
-});
+// Compare button handler
+document.getElementById('compareBtn').addEventListener('click', compareDates);
 
-// Compare button
-document.getElementById('compareBtn').addEventListener('click', function() {
-    document.getElementById('compareForm').submit();
-});
+// Clear button handler
+document.getElementById('clearBtn').addEventListener('click', clearAllDates);
 
-// Initialize calendar on page load
-document.addEventListener('DOMContentLoaded', function() {
-    renderCalendar();
-});
+// Initialize calendar and selected dates display
+renderCalendar(currentMonth, currentYear);
+updateSelectedDatesDisplay();
+
+// Chart colors
+const chartColors = [
+    '#2563eb', // Blue
+    '#059669', // Green
+    '#d97706', // Orange
+    '#dc2626', // Red
+    '#7c3aed', // Purple
+    '#0891b2', // Cyan
+    '#db2777', // Pink
+    '#65a30d', // Lime
+];
+
+// Comparison Line Chart (when 2+ dates selected)
+if (comparisonData.length >= 2) {
+    // Get all unique time labels
+    let allTimeLabels = new Set();
+    comparisonData.forEach(data => {
+        data.time_labels.forEach(label => allTimeLabels.add(label));
+    });
+    const sortedTimeLabels = Array.from(allTimeLabels).sort((a, b) => {
+        const timeA = a.replace(/AM|PM/, '').trim();
+        const timeB = b.replace(/AM|PM/, '').trim();
+        return timeA.localeCompare(timeB);
+    });
+    
+    // Create datasets for each date
+    const datasets = comparisonData.map((data, index) => {
+        const values = sortedTimeLabels.map(label => {
+            const idx = data.time_labels.indexOf(label);
+            return idx >= 0 ? data.time_values[idx] : null;
+        });
+        
+        return {
+            label: data.date,
+            data: values,
+            borderColor: chartColors[index % chartColors.length],
+            backgroundColor: chartColors[index % chartColors.length] + '20',
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: chartColors[index % chartColors.length],
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+        };
+    });
+    
+    const comparisonCtx = document.getElementById('comparisonLineChart');
+    if (comparisonCtx) {
+        new Chart(comparisonCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: sortedTimeLabels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ₹' + (context.parsed.y ? context.parsed.y.toFixed(2) : '0.00');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₹' + value;
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    const comparisonOrdersCtx = document.getElementById('comparisonOrdersLineChart');
+    if (comparisonOrdersCtx) {
+        new Chart(comparisonOrdersCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: sortedTimeLabels,
+                datasets: comparisonData.map((data, index) => ({
+                    label: data.date,
+                    data: sortedTimeLabels.map(label => {
+                        const idx = data.time_labels.indexOf(label);
+                        return idx >= 0 ? (data.orders_values ? data.orders_values[idx] : 0) : null;
+                    }),
+                    borderColor: chartColors[index % chartColors.length],
+                    backgroundColor: chartColors[index % chartColors.length] + '20',
+                    fill: true,
+                    tension: 0.4
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    const totalRevenueCtx = document.getElementById('totalRevenueChart');
+    if (totalRevenueCtx) {
+        new Chart(totalRevenueCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: comparisonData.map(d => d.date),
+                datasets: [{
+                    label: 'Total Revenue (₹)',
+                    data: comparisonData.map(d => d.total_revenue),
+                    backgroundColor: chartColors.slice(0, comparisonData.length),
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    const revenueDistributionCtx = document.getElementById('revenueDistributionChart');
+    if (revenueDistributionCtx) {
+        new Chart(revenueDistributionCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: comparisonData.map(d => d.date),
+                datasets: [{
+                    data: comparisonData.map(d => d.total_revenue),
+                    backgroundColor: chartColors.slice(0, comparisonData.length),
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Individual Bar Charts for Each Date
+{% for data in all_data %}
+(function() {
+    const ctx = document.getElementById('chart_{{ loop.index }}');
+    if (ctx) {
+        new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: {{ data.time_labels | tojson }},
+                datasets: [{
+                    label: 'Revenue (₹)',
+                    data: {{ data.time_values | tojson }},
+                    backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₹' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+})();
+{% endfor %}
 </script>
 {% endblock %}

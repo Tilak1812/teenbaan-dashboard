@@ -7,6 +7,7 @@ import os
 import shutil
 import csv
 import io
+import re
 
 app = Flask(__name__)
 app.secret_key = 'Teenbaan_secret_key_2024'
@@ -27,6 +28,9 @@ def get_db():
         db.row_factory = sqlite3.Row
     return db
 
+# Add this line:
+get_db_connection = get_db
+
 @app.teardown_appcontext
 def close_connection(exception):
     db = getattr(g, '_database', None)
@@ -35,7 +39,7 @@ def close_connection(exception):
         g._database = None
 
 def migrate_database():
-    """Add missing columns to existing database"""
+    """to existing database""" """Add missing columns"""    
     if not os.path.exists(DATABASE):
         return
     
@@ -46,7 +50,7 @@ def migrate_database():
     c.execute("SELECT name FROM sqlite_master WHERE type='table'")
     existing_tables = [row[0] for row in c.fetchall()]
     
-    # Add columns to orders table (only status, no customer fields)
+    # Add columns to orders table
     if 'orders' in existing_tables:
         c.execute("PRAGMA table_info(orders)")
         order_columns = [row[1] for row in c.fetchall()]
@@ -65,24 +69,6 @@ def migrate_database():
             description TEXT,
             status TEXT DEFAULT 'active',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )''')
-    
-    # Create products table
-    if 'products' not in existing_tables:
-        c.execute('''CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT,
-            sku TEXT UNIQUE,
-            price REAL NOT NULL,
-            cost_price REAL DEFAULT 0,
-            category_id INTEGER,
-            tags TEXT,
-            stock INTEGER DEFAULT 0,
-            status TEXT DEFAULT 'active',
-            image_url TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
     
     # Create refunds table
@@ -109,7 +95,7 @@ def migrate_database():
     
     conn.commit()
     conn.close()
-    print("✅ Database migration completed!")
+    print("Database migration completed!")
 
 def init_db():
     """Initialize the database with required tables"""
@@ -130,7 +116,7 @@ def init_db():
                 last_login TIMESTAMP
             )''')
             
-            # Create orders table (without customer fields)
+            # Create orders table
             c.execute('''CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date TEXT NOT NULL,
@@ -150,23 +136,6 @@ def init_db():
                 description TEXT,
                 status TEXT DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )''')
-            
-            # Create products table
-            c.execute('''CREATE TABLE IF NOT EXISTS products (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                description TEXT,
-                sku TEXT UNIQUE,
-                price REAL NOT NULL,
-                cost_price REAL DEFAULT 0,
-                category_id INTEGER,
-                tags TEXT,
-                stock INTEGER DEFAULT 0,
-                status TEXT DEFAULT 'active',
-                image_url TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )''')
             
             # Create refunds table
@@ -195,7 +164,7 @@ def init_db():
                 hashed_pw = generate_password_hash('admin123')
                 c.execute('INSERT INTO users (username, email, password, role, status) VALUES (?, ?, ?, ?, ?)',
                           ('admin', 'admin@Teenbaan.com', hashed_pw, 'admin', 'active'))
-                print("✅ Admin user created: admin / admin123")
+                print("Admin user created: admin / admin123")
             
             # Create default categories
             c.execute("SELECT COUNT(*) FROM categories")
@@ -208,10 +177,10 @@ def init_db():
                     ('Sports', 'Sports and outdoor')
                 ]
                 c.executemany('INSERT INTO categories (name, description) VALUES (?, ?)', default_categories)
-                print("✅ Default categories created")
+                print("Default categories created")
             
             db.commit()
-            print("✅ Database initialized successfully!")
+            print("Database initialized successfully!")
     except Exception as e:
         print(f"Error initializing database: {e}")
 
@@ -254,20 +223,35 @@ def log_activity(user_id, action, details):
 # AUTH ROUTES
 # ============================================
 
+@app.route('/')
+def index():
+    """Redirect to login or dashboard"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
+        
+        if not username or not password:
+            flash('Please enter username and password.', 'error')
+            return redirect(url_for('login'))
         
         db = get_db()
         user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
         
-        if user and user['status'] == 'inactive':
+        if not user:
+            flash('Invalid username or password.', 'error')
+            return redirect(url_for('login'))
+        
+        if user['status'] == 'inactive':
             flash('Your account has been deactivated. Contact admin.', 'error')
             return redirect(url_for('login'))
         
-        if user and check_password_hash(user['password'], password):
+        if check_password_hash(user['password'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user['role']
@@ -280,6 +264,7 @@ def login():
             return redirect(url_for('dashboard'))
         
         flash('Invalid username or password.', 'error')
+        return redirect(url_for('login'))
     
     return render_template('login.html')
 
@@ -294,10 +279,14 @@ def logout():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
-        confirm_password = request.form['confirm_password']
+        username = request.form.get('username', '')
+        email = request.form.get('email', '')
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        if not username or not password:
+            flash('Please fill in all required fields.', 'error')
+            return redirect(url_for('register'))
         
         if password != confirm_password:
             flash('Passwords do not match.', 'error')
@@ -321,7 +310,7 @@ def register():
 # DASHBOARD ROUTE
 # ============================================
 
-@app.route('/')
+@app.route('/dashboard')
 @login_required
 def dashboard():
     with sqlite3.connect(DATABASE) as conn:
@@ -332,9 +321,6 @@ def dashboard():
         
         c.execute("SELECT SUM(Amount_spend) FROM orders")
         total_revenue = c.fetchone()[0] or 0
-        
-        c.execute("SELECT COUNT(*) FROM products")
-        total_products = c.fetchone()[0] or 0
         
         c.execute("SELECT COUNT(*) FROM categories")
         total_categories = c.fetchone()[0] or 0
@@ -392,7 +378,6 @@ def dashboard():
     return render_template("dashboard.html",
                            total_orders=total_orders,
                            total_revenue=total_revenue,
-                           total_products=total_products,
                            total_categories=total_categories,
                            pending_orders=pending_orders,
                            completed_orders=completed_orders,
@@ -402,6 +387,7 @@ def dashboard():
                            revenue_time_labels=revenue_time_labels,
                            revenue_time_values=revenue_time_values,
                            order_status_data=order_status_data_list)
+
 # ============================================
 # ORDER MANAGEMENT ROUTES
 # ============================================
@@ -409,54 +395,116 @@ def dashboard():
 @app.route('/orders')
 @login_required
 def orders():
+    # Get filter parameters
+    date_filter = request.args.get('date', '')
+    day_filter = request.args.get('day', '')
+    time_filter = request.args.get('time', '')
+    orders_op = request.args.get('orders_op', '')
+    orders_value = request.args.get('orders', '')
+    amount_op = request.args.get('amount_op', '')
+    amount_value = request.args.get('amount', '')
     status_filter = request.args.get('status', '')
     
-    with sqlite3.connect(DATABASE) as conn:
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        
-        query = "SELECT id, date, day, time, orders, Amount_spend, status FROM orders WHERE 1=1"
-        params = []
-        
-        if status_filter:
-            query += " AND status=?"
-            params.append(status_filter)
-        
-        query += " ORDER BY id DESC"
-        
-        c.execute(query, params)
-        orders_list = c.fetchall()
-        
-        # Convert to list of dictionaries
-        orders_data = []
-        for row in orders_list:
-            row_dict = {
-                'id': row['id'],
-                'date': row['date'],
-                'day': row['day'],
-                'time': row['time'],
-                'orders': row['orders'],
-                'Amount_spend': row['Amount_spend'],
-                'status': row['status'] if row['status'] else 'completed'
-            }
-            
-            # Convert time to 12-hour format
-            time_str = str(row_dict['time']) if row_dict['time'] else "00:00:00"
-            try:
-                time_obj = datetime.strptime(time_str, "%H:%M:%S")
-                row_dict['time'] = time_obj.strftime("%I:%M %p")
-            except:
-                pass
-            
-            orders_data.append(row_dict)
-        
-        # Get status counts
-        c.execute("SELECT status, COUNT(*) FROM orders GROUP BY status")
-        status_counts = {}
-        for row in c.fetchall():
-            status_counts[row[0]] = row[1]
+    # Build query
+    query = "SELECT * FROM orders WHERE 1=1"
+    params = []
     
-    return render_template("orders.html", orders=orders_data, status_counts=status_counts, status_filter=status_filter)
+    if date_filter:
+        query += " AND date = ?"
+        params.append(date_filter)
+    
+    if day_filter:
+        query += " AND day = ?"
+        params.append(day_filter)
+    
+    if time_filter:
+        # Convert 12-hour time to 24-hour for comparison
+        try:
+            time_obj = datetime.strptime(time_filter, "%I:%M %p")
+            time_24hr = time_obj.strftime("%H:%M:%S")
+            query += " AND time = ?"
+            params.append(time_24hr)
+        except:
+            pass
+    
+    if orders_op and orders_value:
+        orders_int = int(orders_value)
+        if orders_op == 'eq':
+            query += " AND orders = ?"
+        elif orders_op == 'gt':
+            query += " AND orders > ?"
+        elif orders_op == 'lt':
+            query += " AND orders < ?"
+        elif orders_op == 'gte':
+            query += " AND orders >= ?"
+        elif orders_op == 'lte':
+            query += " AND orders <= ?"
+        params.append(orders_int)
+    
+    if amount_op and amount_value:
+        amount_float = float(amount_value)
+        if amount_op == 'eq':
+            query += " AND Amount_spend = ?"
+        elif amount_op == 'gt':
+            query += " AND Amount_spend > ?"
+        elif amount_op == 'lt':
+            query += " AND Amount_spend < ?"
+        elif amount_op == 'gte':
+            query += " AND Amount_spend >= ?"
+        elif amount_op == 'lte':
+            query += " AND Amount_spend <= ?"
+        params.append(amount_float)
+    
+    if status_filter:
+        query += " AND status = ?"
+        params.append(status_filter)
+    
+    query += " ORDER BY id DESC"
+    
+    conn = get_db_connection()
+    orders_list = conn.execute(query, params).fetchall()
+    
+    # Get status counts
+    status_counts = conn.execute('''SELECT status, COUNT(*) FROM orders GROUP BY status''').fetchall()
+    status_counts = {row[0]: row[1] for row in status_counts}
+    
+    # Calculate total amount
+    total_amount = conn.execute("SELECT SUM(Amount_spend) FROM orders").fetchone()[0] or 0
+    
+    conn.close()
+    
+    # Format time for display
+    orders_list = [list(row) for row in orders_list]
+    for row in orders_list:
+        time_str = str(row[3]) if row[3] else "00:00:00"
+        try:
+            time_obj = datetime.strptime(time_str, "%H:%M:%S")
+            row[3] = time_obj.strftime("%I:%M %p")
+        except:
+            pass
+    
+    return render_template('orders.html', 
+                          orders=orders_list,
+                          status_filter=status_filter,
+                          status_counts=status_counts,
+                          total_amount=total_amount,
+                          filters={
+                              'date': date_filter,
+                              'day': day_filter,
+                              'time': time_filter,
+                              'orders_op': orders_op,
+                              'orders': orders_value,
+                              'amount_op': amount_op,
+                              'amount': amount_value,
+                              'status': status_filter
+                          },
+                          filters_applied=any([date_filter, day_filter, time_filter, 
+                                              orders_op, orders_value, amount_op, 
+                                              amount_value, status_filter]))
+
+# ============================================
+# ORDER MANAGEMENT ROUTES (continued)
+# ============================================
 
 @app.route('/orders/view/<int:id>')
 @login_required
@@ -520,12 +568,13 @@ def process_refund(id):
                       (id, refund_amount, reason, session['user_id']))
             
             # Update order status
+                        # Update order status
             c.execute("UPDATE orders SET status='refunded', updated_at=CURRENT_TIMESTAMP WHERE id=?", (id,))
             
             conn.commit()
             
-            log_activity(session['user_id'], 'refund', f'Refunded ₹{refund_amount} for order #{id}')
-            flash(f'Refund of ₹{refund_amount} processed successfully!', 'success')
+            log_activity(session['user_id'], 'refund', f'Refunded Rs{refund_amount} for order #{id}')
+            flash(f'Refund of Rs{refund_amount} processed successfully!', 'success')
     
     return redirect(url_for('order_detail', id=id))
 
@@ -587,215 +636,122 @@ def export_orders():
         headers={'Content-Disposition': 'attachment;filename=orders_export.csv'})
 
 # ============================================
-# PRODUCT MANAGEMENT ROUTES
+# ADD ORDER ROUTE
 # ============================================
 
-@app.route('/products')
+@app.route('/add', methods=['GET', 'POST'])
 @login_required
-def products():
-    category_filter = request.args.get('category', '')
-    status_filter = request.args.get('status', '')
-    search = request.args.get('search', '')
-    
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-        
-        query = """
-            SELECT p.*, c.name as category_name 
-            FROM products p 
-            LEFT JOIN categories c ON p.category_id = c.id 
-            WHERE 1=1
-        """
-        params = []
-        
-        if category_filter:
-            query += " AND p.category_id=?"
-            params.append(category_filter)
-        
-        if status_filter:
-            query += " AND p.status=?"
-            params.append(status_filter)
-        
-        if search:
-            query += " AND (p.name LIKE ? OR p.sku LIKE ?)"
-            params.extend([f'%{search}%', f'%{search}%'])
-        
-        query += " ORDER BY p.id DESC"
-        
-        c.execute(query, params)
-        products_list = c.fetchall()
-        
-        # Get categories for filter
-        c.execute("SELECT id, name FROM categories WHERE status='active' ORDER BY name")
-        categories = c.fetchall()
-        
-        # Get status counts
-        c.execute("SELECT status, COUNT(*) FROM products GROUP BY status")
-        status_counts = dict(c.fetchall())
-    
-    return render_template("products.html", 
-                           products=products_list, 
-                           categories=categories,
-                           status_counts=status_counts,
-                           category_filter=category_filter,
-                           status_filter=status_filter,
-                           search=search)
-
-@app.route('/products/add', methods=['GET', 'POST'])
-@login_required
-def add_product():
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-        
-        if request.method == 'POST':
-            name = request.form['name']
-            description = request.form.get('description', '')
-            sku = request.form.get('sku', '')
-            price = request.form['price']
-            cost_price = request.form.get('cost_price', 0)
-            category_id = request.form.get('category_id', None)
-            tags = request.form.get('tags', '')
-            stock = request.form.get('stock', 0)
-            status = request.form.get('status', 'active')
-            
-            try:
-                c.execute("""
-                    INSERT INTO products (name, description, sku, price, cost_price, category_id, tags, stock, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (name, description, sku, float(price), float(cost_price) if cost_price else 0, 
-                      int(category_id) if category_id else None, tags, int(stock), status))
-                conn.commit()
-                
-                log_activity(session['user_id'], 'add_product', f'Added product: {name}')
-                flash(f'Product "{name}" added successfully!', 'success')
-                return redirect(url_for('products'))
-            except sqlite3.IntegrityError:
-                flash('SKU already exists!', 'error')
-        
-        c.execute("SELECT id, name FROM categories WHERE status='active' ORDER BY name")
-        categories = c.fetchall()
-    
-    return render_template("product_form.html", product=None, categories=categories, action='Add')
-
-@app.route('/products/edit/<int:id>', methods=['GET', 'POST'])
-@login_required
-def edit_product(id):
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-        
-        if request.method == 'POST':
-            name = request.form['name']
-            description = request.form.get('description', '')
-            sku = request.form.get('sku', '')
-            price = request.form['price']
-            cost_price = request.form.get('cost_price', 0)
-            category_id = request.form.get('category_id', None)
-            tags = request.form.get('tags', '')
-            stock = request.form.get('stock', 0)
-            status = request.form.get('status', 'active')
-            
-            try:
-                c.execute("""
-                    UPDATE products 
-                    SET name=?, description=?, sku=?, price=?, cost_price=?, 
-                        category_id=?, tags=?, stock=?, status=?, updated_at=CURRENT_TIMESTAMP
-                    WHERE id=?
-                """, (name, description, sku, float(price), float(cost_price) if cost_price else 0,
-                      int(category_id) if category_id else None, tags, int(stock), status, id))
-                conn.commit()
-                
-                log_activity(session['user_id'], 'edit_product', f'Updated product: {name}')
-                flash(f'Product "{name}" updated successfully!', 'success')
-                return redirect(url_for('products'))
-            except sqlite3.IntegrityError:
-                flash('SKU already exists!', 'error')
-        
-        c.execute("SELECT * FROM products WHERE id=?", (id,))
-        product = c.fetchone()
-        
-        c.execute("SELECT id, name FROM categories WHERE status='active' ORDER BY name")
-        categories = c.fetchall()
-    
-    return render_template("product_form.html", product=product, categories=categories, action='Edit')
-
-@app.route('/products/delete/<int:id>')
-@admin_required
-def delete_product(id):
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-        c.execute("SELECT name FROM products WHERE id=?", (id,))
-        product = c.fetchone()
-        
-        c.execute("DELETE FROM products WHERE id=?", (id,))
-        conn.commit()
-    
-    log_activity(session['user_id'], 'delete_product', f'Deleted product: {product[0]}')
-    flash(f'Product deleted successfully!', 'success')
-    return redirect(url_for('products'))
-
-@app.route('/products/toggle/<int:id>')
-@login_required
-def toggle_product_status(id):
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-        c.execute("SELECT name, status FROM products WHERE id=?", (id,))
-        product = c.fetchone()
-        
-        new_status = 'inactive' if product[1] == 'active' else 'active'
-        c.execute("UPDATE products SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", (new_status, id))
-        conn.commit()
-    
-    log_activity(session['user_id'], 'toggle_product', f'Changed {product[0]} to {new_status}')
-    flash(f'Product status changed to {new_status}!', 'success')
-    return redirect(url_for('products'))
-
-@app.route('/products/bulk-upload', methods=['GET', 'POST'])
-@admin_required
-def bulk_upload_products():
+def add():
     if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('No file uploaded!', 'error')
-            return redirect(url_for('bulk_upload_products'))
+        date = request.form['date']
+        hour = int(request.form['hour'])
+        minute = int(request.form['minute'])
+        ampm = request.form['ampm']
+        orders_count = int(request.form['orders'])
+        amount = float(request.form['amount'])
         
-        file = request.files['file']
-        if file.filename == '':
-            flash('No file selected!', 'error')
-            return redirect(url_for('bulk_upload_products'))
+        if ampm == 'PM' and hour != 12:
+            hour += 12
+        elif ampm == 'AM' and hour == 12:
+            hour = 0
         
-        # Read CSV file
-        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-        csv_input = csv.reader(stream)
+        time_str = f"{hour:02d}:{minute:02d}:00"
+        day_name = get_day_name(date)
         
-        # Skip header
-        next(csv_input, None)
+        conn = get_db()
+        conn.execute('''INSERT INTO orders (date, day, time, orders, Amount_spend) 
+                       VALUES (?, ?, ?, ?, ?)''', 
+                    (date, day_name, time_str, orders_count, amount))
+        conn.commit()
+        conn.close()
         
-        with sqlite3.connect(DATABASE) as conn:
-            c = conn.cursor()
-            count = 0
-            
-            for row in csv_input:
-                if len(row) >= 5:
-                    try:
-                        c.execute("""
-                            INSERT INTO products (name, description, sku, price, stock, status)
-                            VALUES (?, ?, ?, ?, ?, 'active')
-                        """, (row[0], row[1] if len(row) > 1 else '', 
-                              row[2] if len(row) > 2 else '',
-                              float(row[3]) if row[3] else 0,
-                              int(row[4]) if row[4] else 0))
-                        count += 1
-                    except sqlite3.IntegrityError:
-                        continue
-                    except (ValueError, IndexError):
-                        continue
-            
-            conn.commit()
-        
-        log_activity(session['user_id'], 'bulk_upload', f'Bulk uploaded {count} products')
-        flash(f'{count} products uploaded successfully!', 'success')
-        return redirect(url_for('products'))
+        flash('Order added successfully!', 'success')
+        return redirect(url_for('orders'))
     
-    return render_template("bulk_upload.html")
+    return render_template('form.html')
+
+@app.route('/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit(id):
+    conn = get_db()
+    order = conn.execute("SELECT * FROM orders WHERE id=?", (id,)).fetchone()
+    conn.close()
+    
+    if not order:
+        flash('Order not found!', 'error')
+        return redirect(url_for('orders'))
+    
+    if request.method == 'POST':
+        orders_count = int(request.form['orders'])
+        amount = float(request.form['amount'])
+        
+        conn = get_db()
+        conn.execute("UPDATE orders SET orders=?, Amount_spend=? WHERE id=?", 
+                    (orders_count, amount, id))
+        conn.commit()
+        conn.close()
+        
+        flash('Order updated successfully!', 'success')
+        return redirect(url_for('orders'))
+    
+    order = list(order)
+    order[3] = format_time_12hr(order[3])
+    
+    return render_template('edit.html', data=order)
+
+@app.route('/order/<int:id>')
+@login_required
+def view(id):
+    conn = get_db()
+    order = conn.execute("SELECT * FROM orders WHERE id=?", (id,)).fetchone()
+    conn.close()
+    
+    if not order:
+        flash('Order not found!', 'error')
+        return redirect(url_for('orders'))
+    
+    order = list(order)
+    order[3] = format_time_12hr(order[3])
+    
+    return render_template('order_detail.html', order=order)
+
+@app.route('/order/<int:id>/cancel')
+@login_required
+def cancel(id):
+    conn = get_db()
+    conn.execute("UPDATE orders SET status='cancelled' WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    
+    flash('Order cancelled!', 'warning')
+    return redirect(url_for('orders'))
+
+@app.route('/order/<int:id>/delete')
+@login_required
+def delete(id):
+    conn = get_db()
+    conn.execute("DELETE FROM orders WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    
+    flash('Order deleted!', 'error')
+    return redirect(url_for('orders'))
+
+# ============================================
+# DELETE ORDER ROUTE
+# ============================================
+
+@app.route('/delete/<int:id>')
+@login_required
+def delete_order(id):
+    with sqlite3.connect(DATABASE) as conn:
+        c = conn.cursor()
+        c.execute("DELETE FROM orders WHERE id=?", (id,))
+        conn.commit()
+    
+    log_activity(session['user_id'], 'delete_order', f'Deleted order #{id}')
+    flash('Order deleted successfully!', 'success')
+    return redirect(url_for('orders'))
 
 # ============================================
 # CATEGORY MANAGEMENT ROUTES
@@ -810,27 +766,20 @@ def categories():
         c.execute("SELECT * FROM categories ORDER BY name")
         categories_list = c.fetchall()
         
-        # Convert to list of lists for template access
         categories_data = []
         for cat in categories_list:
             cat_list = list(cat)
-            # Ensure all fields exist
             while len(cat_list) < 5:
                 cat_list.append(None)
             categories_data.append(cat_list)
-        
-        c.execute("SELECT category_id, COUNT(*) FROM products GROUP BY category_id")
-        product_counts = {}
-        for row in c.fetchall():
-            product_counts[row[0]] = row[1]
     
-    return render_template("categories.html", categories=categories_data, product_counts=product_counts)
+    return render_template("categories.html", categories=categories_data)
 
 @app.route('/categories/add', methods=['GET', 'POST'])
 @login_required
 def add_category():
     if request.method == 'POST':
-        name = request.form['name']
+        name = request.form.get('name')
         description = request.form.get('description', '')
         
         with sqlite3.connect(DATABASE) as conn:
@@ -855,7 +804,7 @@ def edit_category(id):
         c = conn.cursor()
         
         if request.method == 'POST':
-            name = request.form['name']
+            name = request.form.get('name')
             description = request.form.get('description', '')
             status = request.form.get('status', 'active')
             
@@ -880,13 +829,6 @@ def edit_category(id):
 def delete_category(id):
     with sqlite3.connect(DATABASE) as conn:
         c = conn.cursor()
-        
-        c.execute("SELECT COUNT(*) FROM products WHERE category_id=?", (id,))
-        count = c.fetchone()[0]
-        
-        if count > 0:
-            flash(f'Cannot delete category! {count} products are still assigned to it.', 'error')
-            return redirect(url_for('categories'))
         
         c.execute("SELECT name FROM categories WHERE id=?", (id,))
         category = c.fetchone()
@@ -915,103 +857,250 @@ def toggle_category_status(id):
     return redirect(url_for('categories'))
 
 # ============================================
-# ADD ORDER ROUTE
+# IMPORT/EXPORT ROUTES
 # ============================================
 
-@app.route('/add', methods=['GET', 'POST'])
-@login_required
-def add():
+@app.route('/import', methods=['GET', 'POST'])
+@admin_required
+def import_data():
+    if request.method == 'POST':
+        try:
+            if 'file' not in request.files:
+                flash('No file uploaded!', 'error')
+                return redirect(request.url)
+            
+            file = request.files['file']
+            
+            if file.filename == '':
+                flash('No file selected!', 'error')
+                return redirect(request.url)
+            
+            table_name = request.form.get('table_name', '').strip()
+            
+            if not table_name:
+                table_name = re.sub(r'[^a-zA-Z0-9]', '_', file.filename.split('.')[0].lower())
+            
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+                flash('Invalid table name!', 'error')
+                return redirect(request.url)
+            
+            decoded_file = file.read().decode('utf-8')
+            csv_reader = csv.reader(decoded_file.splitlines())
+            
+            headers = next(csv_reader)
+            
+            if not headers:
+                flash('File is empty!', 'error')
+                return redirect(request.url)
+            
+            clean_headers = []
+            for h in headers:
+                col_name = h.strip().lower().replace(' ', '_')
+                col_name = re.sub(r'[^a-zA-Z0-9_]', '', col_name)
+                if not col_name:
+                    col_name = 'col_' + str(len(clean_headers))
+                clean_headers.append(col_name)
+            
+            rows = list(csv_reader)
+            
+            if not rows:
+                flash('No data in file!', 'error')
+                return redirect(request.url)
+            
+            with sqlite3.connect(DATABASE) as conn:
+                c = conn.cursor()
+                
+                columns_def = ['"' + col + '" TEXT' for col in clean_headers]
+                create_sql = f"CREATE TABLE IF NOT EXISTS {table_name} (id INTEGER PRIMARY KEY AUTOINCREMENT, {', '.join(columns_def)})"
+                c.execute(create_sql)
+                
+                for row in rows:
+                    values = [val.strip() if val else '' for val in row[:len(clean_headers)]]
+                    placeholders = ', '.join(['?' for _ in range(len(values))])
+                    insert_sql = f"INSERT INTO {table_name} ({', '.join(['"' + col + '"' for col in clean_headers])}) VALUES ({placeholders})"
+                    c.execute(insert_sql, values)
+                
+                conn.commit()
+                
+                flash(f'Successfully imported {len(rows)} rows into table "{table_name}"!', 'success')
+                return redirect(url_for('view_table', table_name=table_name))
+        
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'error')
+            return redirect(request.url)
+    
     with sqlite3.connect(DATABASE) as conn:
         c = conn.cursor()
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        tables = [row[0] for row in c.fetchall()]
+    
+    return render_template("import.html", tables=tables)
+
+@app.route('/table/<table_name>')
+@admin_required
+def view_table(table_name):
+    try:
+        with sqlite3.connect(DATABASE) as conn:
+            c = conn.cursor()
+            
+            c.execute(f"PRAGMA table_info({table_name})")
+            columns = c.fetchall()
+            
+            c.execute(f"SELECT * FROM {table_name} LIMIT 100")
+            rows = c.fetchall()
+            
+            c.execute(f"SELECT COUNT(*) FROM {table_name}")
+            total_count = c.fetchone()[0]
         
-        if request.method == 'POST':
-            date = request.form['date']
-            hour = request.form['hour']
-            minute = request.form['minute']
-            ampm = request.form['ampm']
-            orders_count = request.form['orders']
-            amount = request.form['amount']
-            
-            # Convert to integers
-            hour_int = int(hour)
-            minute_int = int(minute)
-            
-            # Convert to 24-hour format
-            hour_24 = hour_int
-            if ampm == 'PM' and hour_24 != 12:
-                hour_24 += 12
-            elif ampm == 'AM' and hour_24 == 12:
-                hour_24 = 0
-            
-            time_str = f"{hour_24:02d}:{minute_int:02d}:00"
-            
-            # Get day name
-            try:
-                date_obj = datetime.strptime(date, "%Y-%m-%d")
-                day = date_obj.strftime("%A")
-            except:
-                day = date
-            
-            orders_int = int(orders_count)
-            amount_float = float(amount)
-            
-            c.execute("""
-                INSERT INTO orders (date, day, time, orders, Amount_spend, status)
-                VALUES (?, ?, ?, ?, ?, 'completed')
-            """, (date, day, time_str, orders_int, amount_float))
+        return render_template("view_table.html", 
+                              table_name=table_name, 
+                              columns=columns, 
+                              rows=rows,
+                              total_count=total_count)
+    
+    except Exception as e:
+        flash(f'Error viewing table: {str(e)}', 'error')
+        return redirect(url_for('import_data'))
+
+@app.route('/table/<table_name>/delete', methods=['POST'])
+@admin_required
+def delete_table(table_name):
+    try:
+        protected_tables = ['users', 'orders', 'categories', 'refunds', 'activity_log']
+        if table_name.lower() in protected_tables:
+            flash(f'Cannot delete protected table "{table_name}"!', 'error')
+            return redirect(url_for('import_data'))
+        
+        with sqlite3.connect(DATABASE) as conn:
+            c = conn.cursor()
+            c.execute(f"DROP TABLE IF EXISTS {table_name}")
             conn.commit()
             
-            order_id = c.lastrowid
-            
-            log_activity(session['user_id'], 'add_order', f'Added order #{order_id}: {orders_int} items, ₹{amount_float}')
-            flash(f'Order #{order_id} added successfully!', 'success')
-            return redirect(url_for('orders'))
+            log_activity(session['user_id'], 'delete_table', f'Deleted table "{table_name}"')
+            flash(f'Table "{table_name}" deleted successfully!', 'success')
     
-    return render_template("form.html")
+    except Exception as e:
+        flash(f'Error deleting table: {str(e)}', 'error')
+    
+    return redirect(url_for('import_data'))
 
-# ============================================
-# EDIT ORDER ROUTE
-# ============================================
-
-@app.route('/edit/<int:id>', methods=['GET', 'POST'])
-@login_required
-def edit(id):
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
+@app.route('/table/<table_name>/export')
+@admin_required
+def export_table_csv(table_name):
+    try:
+        with sqlite3.connect(DATABASE) as conn:
+            c = conn.cursor()
+            c.execute(f"SELECT * FROM {table_name}")
+            rows = c.fetchall()
+            c.execute(f"PRAGMA table_info({table_name})")
+            columns = [col[1] for col in c.fetchall()]
         
-        if request.method == 'POST':
-            orders = int(request.form['orders'])
-            amount = float(request.form['amount'])
-            
-            c.execute("""
-                UPDATE orders SET orders=?, Amount_spend=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
-            """, (orders, amount, id))
-            conn.commit()
-            
-            log_activity(session['user_id'], 'edit_order', f'Updated order #{id}')
-            flash('Order updated successfully!', 'success')
-            return redirect(url_for('orders'))
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(columns)
         
-        c.execute("SELECT * FROM orders WHERE id=?", (id,))
-        data = c.fetchone()
+        for row in rows:
+            writer.writerow(row)
+        
+        output.seek(0)
+        
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment;filename={table_name}_{datetime.now().strftime("%Y%m%d")}.csv'
+            }
+        )
     
-    return render_template("edit.html", data=data)
+    except Exception as e:
+        flash(f'Error exporting table: {str(e)}', 'error')
+        return redirect(url_for('import_data'))
 
 # ============================================
-# DELETE ORDER ROUTE
+# UPLOAD CSV ROUTE
 # ============================================
 
-@app.route('/delete/<int:id>')
-@login_required
-def delete_order(id):
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-        c.execute("DELETE FROM orders WHERE id=?", (id,))
-        conn.commit()
+@app.route('/upload-csv', methods=['GET', 'POST'])
+@admin_required
+def upload_csv():
+    if request.method == 'POST':
+        try:
+            if 'file' not in request.files:
+                flash('No file uploaded!', 'error')
+                return redirect(request.url)
+            
+            file = request.files['file']
+            
+            if file.filename == '':
+                flash('No file selected!', 'error')
+                return redirect(request.url)
+            
+            if not file.filename.endswith('.csv'):
+                flash('Only CSV files are allowed!', 'error')
+                return redirect(request.url)
+            
+            table_name = request.form.get('table_name', '').strip()
+            
+            if not table_name:
+                table_name = file.filename.split('.')[0].lower()
+                table_name = re.sub(r'[^a-zA-Z0-9_]', '_', table_name)
+            
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+                flash('Invalid table name!', 'error')
+                return redirect(request.url)
+            
+            decoded_file = file.read().decode('utf-8')
+            csv_reader = csv.reader(decoded_file.splitlines())
+            
+            headers = next(csv_reader)
+            
+            if not headers:
+                flash('CSV file is empty!', 'error')
+                return redirect(request.url)
+            
+            clean_headers = []
+            for h in headers:
+                col_name = h.strip().lower().replace(' ', '_')
+                col_name = re.sub(r'[^a-zA-Z0-9_]', '', col_name)
+                if not col_name:
+                    col_name = 'col_' + str(len(clean_headers))
+                clean_headers.append(col_name)
+            
+            rows = list(csv_reader)
+            
+            if not rows:
+                flash('CSV file has no data!', 'error')
+                return redirect(request.url)
+            
+            with sqlite3.connect(DATABASE) as conn:
+                c = conn.cursor()
+                
+                columns_def = [f'"{col}" TEXT' for col in clean_headers]
+                create_sql = f"CREATE TABLE IF NOT EXISTS {table_name} (id INTEGER PRIMARY KEY AUTOINCREMENT, {', '.join(columns_def)})"
+                c.execute(create_sql)
+                
+                for row in rows:
+                    values = [val.strip() if val else '' for val in row[:len(clean_headers)]]
+                    placeholders = ', '.join(['?' for _ in values])
+                    insert_sql = f"INSERT INTO {table_name} ({', '.join(['"' + col + '"' for col in clean_headers])}) VALUES ({placeholders})"
+                    c.execute(insert_sql, values)
+                
+                conn.commit()
+                
+                flash(f'Successfully created table "{table_name}" with {len(rows)} rows!', 'success')
+                return redirect(url_for('view_table', table_name=table_name))
+        
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'error')
+            import traceback
+            traceback.print_exc()
+            return redirect(request.url)
     
-    log_activity(session['user_id'], 'delete_order', f'Deleted order #{id}')
-    flash('Order deleted successfully!', 'success')
-    return redirect(url_for('orders'))
+    return render_template("upload_csv.html")
+
+# ============================================
+# COMPARE ROUTE
+# ============================================
 
 # ============================================
 # COMPARE ROUTE
@@ -1022,21 +1111,21 @@ def delete_order(id):
 def compare():
     dates_str = request.args.get('dates', '')
     
+    # Always ensure selected_dates is a list
     if dates_str:
-        dates = [d.strip() for d in dates_str.split(',') if d.strip()]
+        selected_dates = [d.strip() for d in dates_str.split(',') if d.strip()]
     else:
-        dates = []
+        selected_dates = []
     
     with sqlite3.connect(DATABASE) as conn:
         c = conn.cursor()
         
-        # Get all available dates for the calendar
         c.execute("SELECT DISTINCT date FROM orders ORDER BY date")
         available_dates = [row[0] for row in c.fetchall()]
         
         all_data = []
         
-        for d in dates:
+        for d in selected_dates:
             c.execute("SELECT id, date, day, time, orders, Amount_spend, status FROM orders WHERE date=?", (d,))
             data = c.fetchall()
             
@@ -1049,7 +1138,6 @@ def compare():
             c.execute("SELECT SUM(Amount_spend) FROM orders WHERE date=?", (d,))
             total_revenue = c.fetchone()[0] or 0
             
-            # Get time-based data for chart
             c.execute("SELECT time, SUM(Amount_spend) FROM orders WHERE date=? GROUP BY time ORDER BY time", (d,))
             time_data = c.fetchall()
             
@@ -1062,16 +1150,20 @@ def compare():
                     time_obj = datetime.strptime(time_str, "%H:%M:%S")
                     time_12hr = time_obj.strftime("%I:%M %p")
                 except:
-                    try:
-                        time_obj = datetime.strptime(time_str, "%H:%M")
-                        time_12hr = time_obj.strftime("%I:%M %p")
-                    except:
-                        time_12hr = "12:00 AM"
+                    time_12hr = "12:00 AM"
                 
                 time_labels.append(time_12hr)
                 time_values.append(float(amt) if amt else 0)
             
-            # Convert data to proper format
+            # Also get order counts per time
+                        # Also get order counts per time
+            c.execute("SELECT time, SUM(orders) FROM orders WHERE date=? GROUP BY time ORDER BY time", (d,))
+            orders_per_time = c.fetchall()
+            
+            orders_time_values = []
+            for t, o in orders_per_time:
+                orders_time_values.append(int(o) if o else 0)
+            
             data_12hr = []
             for row in data:
                 row_list = list(row)
@@ -1091,12 +1183,13 @@ def compare():
                 'total_orders': int(total_orders) if total_orders else 0,
                 'total_revenue': float(total_revenue) if total_revenue else 0,
                 'time_labels': time_labels,
-                'time_values': time_values
+                'time_values': time_values,
+                'orders_values': orders_time_values
             })
     
     return render_template("dashboard_compare.html",
                            all_data=all_data,
-                           dates=dates,
+                           selected_dates=selected_dates,
                            available_dates=available_dates)
 # ============================================
 # ADMIN ROUTES
@@ -1113,9 +1206,6 @@ def admin():
         c.execute("SELECT COUNT(*) FROM orders")
         orders_count = c.fetchone()[0]
         
-        c.execute("SELECT COUNT(*) FROM products")
-        products_count = c.fetchone()[0]
-        
         c.execute("SELECT COUNT(*) FROM users")
         users_count = c.fetchone()[0]
         
@@ -1125,7 +1215,6 @@ def admin():
         c.execute("SELECT id, username, role FROM users ORDER BY id")
         users = c.fetchall()
         
-        # Get all tables
         c.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = [row[0] for row in c.fetchall() if row[0] != 'sqlite_sequence']
         
@@ -1138,19 +1227,9 @@ def admin():
                 log_activity(session['user_id'], 'db_action', 'Deleted all orders')
                 orders_count = 0
             
-            elif action == "truncate_products":
-                c.execute("DELETE FROM products")
-                message = "All products deleted successfully."
-                log_activity(session['user_id'], 'db_action', 'Deleted all products')
-                products_count = 0
-            
             elif action == "reset_id_orders":
                 c.execute("DELETE FROM sqlite_sequence WHERE name='orders'")
                 message = "Orders auto increment reset successfully."
-            
-            elif action == "reset_id_products":
-                c.execute("DELETE FROM sqlite_sequence WHERE name='products'")
-                message = "Products auto increment reset successfully."
             
             elif action == "add_column":
                 column_name = request.form.get('column_name')
@@ -1205,7 +1284,6 @@ def admin():
     return render_template("admin.html", 
                           message=message,
                           orders_count=orders_count,
-                          products_count=products_count,
                           users_count=users_count,
                           activity_count=activity_count,
                           users=users,
@@ -1235,7 +1313,7 @@ def create_database():
         init_db()
         
         log_activity(session['user_id'], 'create_db', 'Created new database')
-        flash('✅ New database created successfully!', 'success')
+        flash('New database created successfully!', 'success')
         
     except Exception as e:
         flash(f'Error creating database: {str(e)}', 'error')
@@ -1380,8 +1458,8 @@ def export_dashboard_pdf():
         for row in c.fetchall():
             chart_data.append({
                 'date': str(row[0]) if row[0] else '',
-                'SUM(orders)': int(row[1]) if row[1] else 0,
-                'SUM(Amount_spend)': float(row[2]) if row[2] else 0
+                'orders': int(row[1]) if row[1] else 0,
+                'revenue': float(row[2]) if row[2] else 0
             })
         
         html_content = render_template('pdf_dashboard.html',
@@ -1406,84 +1484,6 @@ def export_dashboard_pdf():
         flash(f'Error generating PDF: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
 
-@app.route('/export/comparison/pdf')
-@login_required
-def export_comparison_pdf():
-    try:
-        dates_str = request.args.get('dates')
-        
-        if dates_str:
-            dates = [d.strip() for d in dates_str.split(',') if d.strip()]
-        else:
-            dates = []
-        
-        if not dates:
-            flash('No dates selected for comparison!', 'error')
-            return redirect(url_for('compare'))
-        
-        db = get_db()
-        c = db.cursor()
-        
-        all_data = []
-        
-        for d in dates:
-            c.execute("SELECT id, date, day, time, orders, Amount_spend, status FROM orders WHERE date=?", (d,))
-            orders = c.fetchall()
-            
-            if not orders:
-                continue
-            
-            orders_list = []
-            for row in orders:
-                time_str = str(row[3]) if row[3] else "00:00:00"
-                try:
-                    time_obj = datetime.strptime(time_str, "%H:%M:%S")
-                    time_12hr = time_obj.strftime("%I:%M %p")
-                except:
-                    time_12hr = "12:00 AM"
-                
-                orders_list.append({
-                    'id': int(row[0]) if row[0] else 0,
-                    'date': str(row[1]) if row[1] else '',
-                    'day': str(row[2]) if row[2] else '',
-                    'time': time_12hr,
-                    'orders': int(row[4]) if row[4] else 0,
-                    'Amount_spend': float(row[5]) if row[5] else 0,
-                    'status': str(row[6]) if row[6] else 'completed'
-                })
-            
-            c.execute("SELECT SUM(orders), SUM(Amount_spend) FROM orders WHERE date=?", (d,))
-            totals = c.fetchone()
-            
-            all_data.append({
-                'date': d,
-                'total_orders': int(totals[0]) if totals[0] else 0,
-                'total_revenue': float(totals[1]) if totals[1] else 0,
-                'order_count': len(orders),
-                'orders': orders_list
-            })
-        
-        if not all_data:
-            flash('No data found for selected dates!', 'error')
-            return redirect(url_for('compare'))
-        
-        html_content = render_template('pdf_comparison.html',
-                                       all_data=all_data,
-                                       generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                       username=session['username'])
-        
-        return Response(
-            html_content,
-            mimetype='text/html',
-            headers={
-                'Content-Disposition': f'attachment; filename=comparison_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
-            }
-        )
-    
-    except Exception as e:
-        flash(f'Error generating comparison PDF: {str(e)}', 'error')
-        return redirect(url_for('compare'))
-
 @app.route('/export/orders/pdf')
 @admin_required
 def export_orders_pdf():
@@ -1499,7 +1499,11 @@ def export_orders_pdf():
                 time_obj = datetime.strptime(time_str, "%H:%M:%S")
                 time_12hr = time_obj.strftime("%I:%M %p")
             except:
-                time_12hr = "12:00 AM"
+                try:
+                    time_obj = datetime.strptime(time_str, "%H:%M")
+                    time_12hr = time_obj.strftime("%I:%M %p")
+                except:
+                    time_12hr = time_str
             
             orders.append({
                 'id': int(row[0]) if row[0] else 0,
@@ -1528,35 +1532,86 @@ def export_orders_pdf():
         flash(f'Error generating orders PDF: {str(e)}', 'error')
         return redirect(url_for('orders'))
 
-@app.route('/export/products/pdf')
-@admin_required
-def export_products_pdf():
+@app.route('/export/comparison/pdf')
+@login_required
+def export_comparison_pdf():
     try:
+        dates_str = request.args.get('dates', '')
+        
+        if dates_str:
+            dates = [d.strip() for d in dates_str.split(',') if d.strip()]
+        else:
+            dates = []
+        
+        if not dates:
+            flash('No dates selected for comparison!', 'error')
+            return redirect(url_for('compare'))
+        
         db = get_db()
         c = db.cursor()
         
-        c.execute("""
-            SELECT p.*, c.name as category_name 
-            FROM products p 
-            LEFT JOIN categories c ON p.category_id = c.id 
-            ORDER BY p.id DESC
-        """)
-        products = []
-        for row in c.fetchall():
-            products.append({
-                'id': int(row['id']) if row['id'] else 0,
-                'name': str(row['name']) if row['name'] else '',
-                'description': str(row['description']) if row['description'] else '',
-                'sku': str(row['sku']) if row['sku'] else '',
-                'price': float(row['price']) if row['price'] else 0,
-                'cost_price': float(row['cost_price']) if row['cost_price'] else 0,
-                'category_name': str(row['category_name']) if row['category_name'] else 'Uncategorized',
-                'stock': int(row['stock']) if row['stock'] else 0,
-                'status': str(row['status']) if row['status'] else 'active'
+        all_data = []
+        
+        for d in dates:
+            c.execute("SELECT id, date, day, time, orders, Amount_spend, status FROM orders WHERE date=?", (d,))
+            orders = c.fetchall()
+            
+            if not orders:
+                continue
+            
+            orders_list = []
+            time_labels = []
+            time_values = []
+            
+            for row in orders:
+                time_raw = row[3]
+                
+                if time_raw:
+                    time_str = str(time_raw)
+                    try:
+                        time_obj = datetime.strptime(time_str, "%H:%M:%S")
+                        time_display = time_obj.strftime("%I:%M %p")
+                    except:
+                        try:
+                            time_obj = datetime.strptime(time_str, "%H:%M")
+                            time_display = time_obj.strftime("%I:%M %p")
+                        except:
+                            time_display = time_str
+                else:
+                    time_display = "12:00 AM"
+                
+                orders_list.append({
+                    'id': int(row[0]) if row[0] else 0,
+                    'date': str(row[1]) if row[1] else '',
+                    'day': str(row[2]) if row[2] else '',
+                    'time': time_display,
+                    'orders': int(row[4]) if row[4] else 0,
+                    'Amount_spend': float(row[5]) if row[5] else 0,
+                    'status': str(row[6]) if row[6] else 'completed'
+                })
+                
+                time_labels.append(time_display)
+                time_values.append(float(row[5]) if row[5] else 0)
+            
+            c.execute("SELECT SUM(orders), SUM(Amount_spend) FROM orders WHERE date=?", (d,))
+            totals = c.fetchone()
+            
+            all_data.append({
+                'date': d,
+                'total_orders': int(totals[0]) if totals[0] else 0,
+                'total_revenue': float(totals[1]) if totals[1] else 0,
+                'order_count': len(orders),
+                'orders': orders_list,
+                'time_labels': time_labels,
+                'time_values': time_values
             })
         
-        html_content = render_template('pdf_products.html',
-                                       products=products,
+        if not all_data:
+            flash('No data found for selected dates!', 'error')
+            return redirect(url_for('compare'))
+        
+        html_content = render_template('pdf_comparison.html',
+                                       all_data=all_data,
                                        generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                        username=session['username'])
         
@@ -1564,13 +1619,13 @@ def export_products_pdf():
             html_content,
             mimetype='text/html',
             headers={
-                'Content-Disposition': f'attachment; filename=products_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
+                'Content-Disposition': f'attachment; filename=comparison_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
             }
         )
     
     except Exception as e:
-        flash(f'Error generating products PDF: {str(e)}', 'error')
-        return redirect(url_for('products'))
+        flash(f'Error generating comparison PDF: {str(e)}', 'error')
+        return redirect(url_for('compare'))
 
 # ============================================
 # USER MANAGEMENT ROUTES
@@ -1598,10 +1653,10 @@ def users():
 @admin_required
 def add_user():
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
-        role = request.form['role']
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        role = request.form.get('role')
         
         hashed_password = generate_password_hash(password)
         
@@ -1625,10 +1680,10 @@ def edit_user(id):
     db = get_db()
     
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        role = request.form['role']
-        status = request.form['status']
+        username = request.form.get('username')
+        email = request.form.get('email')
+        role = request.form.get('role')
+        status = request.form.get('status')
         
         if id == session['user_id'] and role != 'admin':
             flash('Cannot change your own admin role!', 'error')
@@ -1705,8 +1760,8 @@ def profile():
         action = request.form.get('action')
         
         if action == 'update_profile':
-            username = request.form['username']
-            email = request.form['email']
+            username = request.form.get('username')
+            email = request.form.get('email')
             
             existing = db.execute('SELECT id FROM users WHERE username = ? AND id != ?', 
                                 (username, session['user_id'])).fetchone()
@@ -1724,9 +1779,9 @@ def profile():
             return redirect(url_for('profile'))
         
         elif action == 'change_password':
-            current_password = request.form['current_password']
-            new_password = request.form['new_password']
-            confirm_password = request.form['confirm_password']
+            current_password = request.form.get('current_password')
+            new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
             
             if not check_password_hash(user['password'], current_password):
                 flash('Current password is incorrect!', 'error')
@@ -1810,24 +1865,20 @@ def settings():
     orders_count = c.fetchone()[0]
     c.execute("SELECT COUNT(*) FROM users")
     users_count = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM products")
-    products_count = c.fetchone()[0]
     c.execute("SELECT COUNT(*) FROM categories")
     categories_count = c.fetchone()[0]
     
     return render_template("settings.html", message=message, 
                           orders_count=orders_count, 
                           users_count=users_count,
-                          products_count=products_count,
                           categories_count=categories_count)
 
 # ============================================
-# API ROUTES (JSON Endpoints)
+# API ROUTES
 # ============================================
 
 @app.route('/api/health')
 def api_health():
-    """Health check endpoint"""
     return {
         'status': 'healthy',
         'message': 'Teenbaan API is running',
@@ -1838,7 +1889,6 @@ def api_health():
 @app.route('/api/stats')
 @login_required
 def api_stats():
-    """Get dashboard statistics as JSON"""
     try:
         db = get_db()
         c = db.cursor()
@@ -1857,9 +1907,6 @@ def api_stats():
         c.execute("SELECT COUNT(*) FROM users")
         total_users = int(c.fetchone()[0] or 0)
         
-        c.execute("SELECT COUNT(*) FROM products")
-        total_products = int(c.fetchone()[0] or 0)
-        
         c.execute("SELECT COUNT(*) FROM categories")
         total_categories = int(c.fetchone()[0] or 0)
         
@@ -1872,9 +1919,8 @@ def api_stats():
                     'total_revenue': round(total_revenue, 2),
                     'average_order': round(avg_order, 2)
                 },
-                'products': {
-                    'total': total_products,
-                    'categories': total_categories
+                'categories': {
+                    'total': total_categories
                 },
                 'users': {
                     'total': total_users
@@ -1891,7 +1937,6 @@ def api_stats():
 @app.route('/api/orders')
 @login_required
 def api_orders():
-    """Get all orders as JSON"""
     try:
         db = get_db()
         c = db.cursor()
@@ -1951,11 +1996,11 @@ if __name__ == '__main__':
     print("Teenbaan Order Management System v2.0")
     print("=" * 50)
     
-    # Run comprehensive migration
+    # Run migration
     migrate_database()
     
     # Initialize database
     init_db()
     
-    print("\n🚀 Starting Flask server...")
+    print("\nStarting Flask server...")
     app.run(debug=True)
