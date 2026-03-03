@@ -405,6 +405,10 @@ def orders():
     amount_value = request.args.get('amount', '')
     status_filter = request.args.get('status', '')
     
+    # Get sort parameters
+    sort_by = request.args.get('sort_by', 'id')
+    sort_order = request.args.get('sort_order', 'desc')
+    
     # Build query
     query = "SELECT * FROM orders WHERE 1=1"
     params = []
@@ -418,7 +422,6 @@ def orders():
         params.append(day_filter)
     
     if time_filter:
-        # Convert 12-hour time to 24-hour for comparison
         try:
             time_obj = datetime.strptime(time_filter, "%I:%M %p")
             time_24hr = time_obj.strftime("%H:%M:%S")
@@ -459,7 +462,13 @@ def orders():
         query += " AND status = ?"
         params.append(status_filter)
     
-    query += " ORDER BY id DESC"
+    # Add sorting
+    valid_sort_columns = ['id', 'date', 'day', 'time', 'orders', 'Amount_spend', 'status']
+    if sort_by not in valid_sort_columns:
+        sort_by = 'id'
+    
+    sort_direction = 'DESC' if sort_order == 'desc' else 'ASC'
+    query += f" ORDER BY {sort_by} {sort_direction}"
     
     conn = get_db_connection()
     orders_list = conn.execute(query, params).fetchall()
@@ -498,6 +507,8 @@ def orders():
                               'amount': amount_value,
                               'status': status_filter
                           },
+                          sort_by=sort_by,
+                          sort_order=sort_order,
                           filters_applied=any([date_filter, day_filter, time_filter, 
                                               orders_op, orders_value, amount_op, 
                                               amount_value, status_filter]))
@@ -638,6 +649,31 @@ def export_orders():
 # ============================================
 # ADD ORDER ROUTE
 # ============================================
+# Add this function before your routes
+
+def get_day_name(date_str):
+    """Get day name from date string"""
+    try:
+        date = datetime.strptime(date_str, "%Y-%m-%d")
+        return date.strftime("%A")
+    except:
+        return date_str
+
+
+def format_time_12hr(time_str):
+    """Format time to 12-hour format"""
+    try:
+        time_obj = datetime.strptime(str(time_str), "%H:%M:%S")
+        return time_obj.strftime("%I:%M %p")
+    except:
+        return "12:00 AM"
+
+
+def get_db_connection():
+    """Create database connection"""
+    conn = sqlite3.connect('orders.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -917,7 +953,8 @@ def import_data():
                 for row in rows:
                     values = [val.strip() if val else '' for val in row[:len(clean_headers)]]
                     placeholders = ', '.join(['?' for _ in range(len(values))])
-                    insert_sql = f"INSERT INTO {table_name} ({', '.join(['"' + col + '"' for col in clean_headers])}) VALUES ({placeholders})"
+                    columns = ', '.join(['"' + col + '"' for col in clean_headers])
+                    insert_sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
                     c.execute(insert_sql, values)
                 
                 conn.commit()
@@ -1082,7 +1119,8 @@ def upload_csv():
                 for row in rows:
                     values = [val.strip() if val else '' for val in row[:len(clean_headers)]]
                     placeholders = ', '.join(['?' for _ in values])
-                    insert_sql = f"INSERT INTO {table_name} ({', '.join(['"' + col + '"' for col in clean_headers])}) VALUES ({placeholders})"
+                    columns = ', '.join(['"' + col + '"' for col in clean_headers])
+                    insert_sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
                     c.execute(insert_sql, values)
                 
                 conn.commit()
@@ -2003,4 +2041,5 @@ if __name__ == '__main__':
     init_db()
     
     print("\nStarting Flask server...")
-    app.run(debug=True)
+    #app.run(debug=True)dock
+    app.run(host="0.0.0.0", port=5000)

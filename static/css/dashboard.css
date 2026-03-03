@@ -761,3 +761,15 @@ body {
 .compare-actions .btn {
     flex: 1;
 }
+
+.sort-link {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.sort-link:hover {
+    color: var(--primary);
+}

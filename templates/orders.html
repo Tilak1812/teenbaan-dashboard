@@ -288,6 +288,109 @@
     </div>
 </div>
 
+<!-- Sort Controls -->
+<div class="sort-bar">
+    <div class="sort-item">
+        <label>📊 Sort By:</label>
+        <select name="sort_by" class="filter-select" onchange="this.form.submit()">
+            <option value="id" {% if sort_by == 'id' %}selected{% endif %}>ID</option>
+            <option value="date" {% if sort_by == 'date' %}selected{% endif %}>Date</option>
+            <option value="day" {% if sort_by == 'day' %}selected{% endif %}>Day</option>
+            <option value="time" {% if sort_by == 'time' %}selected{% endif %}>Time</option>
+            <option value="orders" {% if sort_by == 'orders' %}selected{% endif %}>Orders</option>
+            <option value="Amount_spend" {% if sort_by == 'Amount_spend' %}selected{% endif %}>Amount</option>
+            <option value="status" {% if sort_by == 'status' %}selected{% endif %}>Status</option>
+        </select>
+    </div>
+    
+    <div class="sort-item">
+        <label>📈 Order:</label>
+        <select name="sort_order" class="filter-select" onchange="this.form.submit()">
+            <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Descending (Z-A)</option>
+            <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascending (A-Z)</option>
+        </select>
+    </div>
+    
+    <div class="sort-item">
+        <label>🔢 Min/Max:</label>
+        <select name="minmax" class="filter-select" onchange="applyMinMax(this.value)">
+            <option value="">All</option>
+            <option value="min_date">Earliest Date</option>
+            <option value="max_date">Latest Date</option>
+            <option value="min_orders">Min Orders</option>
+            <option value="max_orders">Max Orders</option>
+            <option value="min_amount">Min Amount</option>
+            <option value="max_amount">Max Amount</option>
+        </select>
+    </div>
+    
+    <a href="{{ url_for('orders') }}" class="btn btn-secondary btn-sm">🔄 Reset</a>
+</div>
+
+<style>
+.sort-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+.sort-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sort-item label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gray-600);
+}
+
+.sort-item .filter-select {
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    background: var(--bg-secondary);
+}
+</style>
+
+<script>
+function applyMinMax(value) {
+    if (!value) return;
+    
+    const url = new URL(window.location.href);
+    
+    if (value === 'min_date') {
+        url.searchParams.set('sort_by', 'date');
+        url.searchParams.set('sort_order', 'asc');
+    } else if (value === 'max_date') {
+        url.searchParams.set('sort_by', 'date');
+        url.searchParams.set('sort_order', 'desc');
+    } else if (value === 'min_orders') {
+        url.searchParams.set('sort_by', 'orders');
+        url.searchParams.set('sort_order', 'asc');
+    } else if (value === 'max_orders') {
+        url.searchParams.set('sort_by', 'orders');
+        url.searchParams.set('sort_order', 'desc');
+    } else if (value === 'min_amount') {
+        url.searchParams.set('sort_by', 'Amount_spend');
+        url.searchParams.set('sort_order', 'asc');
+    } else if (value === 'max_amount') {
+        url.searchParams.set('sort_by', 'Amount_spend');
+        url.searchParams.set('sort_order', 'desc');
+    }
+    
+    window.location.href = url.toString();
+}
+</script>
+
 <!-- Orders Table -->
 <div class="card">
     <div class="section-header">
@@ -298,6 +401,47 @@
     {% if orders %}
     <div class="table-wrapper">
         <table>
+            <thead>
+    <tr>
+        <th>
+            <a href="{{ url_for('orders', sort_by='id', sort_order='asc' if sort_by=='id' and sort_order=='desc' else 'desc') }}" class="sort-link">
+                ID {% if sort_by == 'id' %}{% if sort_order == 'asc' %}↑{% else %}↓{% endif %}{% endif %}
+            </a>
+        </th>
+        <th>
+            <a href="{{ url_for('orders', sort_by='date', sort_order='asc' if sort_by=='date' and sort_order=='desc' else 'desc') }}" class="sort-link">
+                Date {% if sort_by == 'date' %}{% if sort_order == 'asc' %}↑{% else %}↓{% endif %}{% endif %}
+            </a>
+        </th>
+        <th>
+            <a href="{{ url_for('orders', sort_by='day', sort_order='asc' if sort_by=='day' and sort_order=='desc' else 'desc') }}" class="sort-link">
+                Day {% if sort_by == 'day' %}{% if sort_order == 'asc' %}↑{% else %}↓{% endif %}{% endif %}
+            </a>
+        </th>
+        <th>
+            <a href="{{ url_for('orders', sort_by='time', sort_order='asc' if sort_by=='time' and sort_order=='desc' else 'desc') }}" class="sort-link">
+                Time {% if sort_by == 'time' %}{% if sort_order == 'asc' %}↑{% else %}↓{% endif %}{% endif %}
+            </a>
+        </th>
+        <th>
+            <a href="{{ url_for('orders', sort_by='orders', sort_order='asc' if sort_by=='orders' and sort_order=='desc' else 'desc') }}" class="sort-link">
+                Orders {% if sort_by == 'orders' %}{% if sort_order == 'asc' %}↑{% else %}↓{% endif %}{% endif %}
+            </a>
+        </th>
+        <th>
+            <a href="{{ url_for('orders', sort_by='Amount_spend', sort_order='asc' if sort_by=='Amount_spend' and sort_order=='desc' else 'desc') }}" class="sort-link">
+                Amount {% if sort_by == 'Amount_spend' %}{% if sort_order == 'asc' %}↑{% else %}↓{% endif %}{% endif %}
+            </a>
+        </th>
+        <th>
+            <a href="{{ url_for('orders', sort_by='status', sort_order='asc' if sort_by=='status' and sort_order=='desc' else 'desc') }}" class="sort-link">
+                Status {% if sort_by == 'status' %}{% if sort_order == 'asc' %}↑{% else %}↓{% endif %}{% endif %}
+            </a>
+        </th>
+        <th>Actions</th>
+    </tr>
+            </thead>
+            
             <thead>
                 <tr>
                     <th>ID</th>
